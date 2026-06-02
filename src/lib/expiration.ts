@@ -1,4 +1,5 @@
 import type { Timestamp } from "firebase/firestore";
+import type { InventoryItem } from "@/lib/types/inventory";
 
 export type ExpirationStatus = "expired" | "soon" | "ok" | "none";
 
@@ -41,4 +42,24 @@ export function formatDate(ts: Timestamp | null | undefined): string {
   if (!ts) return "";
   const d = ts.toDate();
   return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+export interface ExpirationSummary {
+  expired: InventoryItem[];
+  soon: InventoryItem[];
+  totalAlerts: number;
+}
+
+export function summarizeExpirations(
+  items: InventoryItem[],
+  now: Date = new Date(),
+): ExpirationSummary {
+  const expired: InventoryItem[] = [];
+  const soon: InventoryItem[] = [];
+  for (const item of items) {
+    const info = getExpirationInfo(item.expiresAt, now);
+    if (info.status === "expired") expired.push(item);
+    else if (info.status === "soon") soon.push(item);
+  }
+  return { expired, soon, totalAlerts: expired.length + soon.length };
 }

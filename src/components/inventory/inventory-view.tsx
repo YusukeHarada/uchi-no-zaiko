@@ -6,12 +6,22 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarcodeScannerDialog } from "@/components/inventory/barcode-scanner-dialog";
+import { ExpirationSummaryBanner } from "@/components/inventory/expiration-summary";
 import { ItemCard } from "@/components/inventory/item-card";
 import {
   ItemFormDialog,
   type ItemFormInitialValues,
 } from "@/components/inventory/item-form-dialog";
 import { subscribeToItems } from "@/lib/firebase/items";
+import { summarizeExpirations } from "@/lib/expiration";
+import {
+  getNotificationStatus,
+  markNotifiedToday,
+  requestNotificationPermission,
+  sendNotification,
+  shouldNotifyToday,
+  type NotificationStatus,
+} from "@/lib/notifications";
 import { lookupProductByBarcode } from "@/lib/product-lookup";
 import {
   STORAGE_LOCATIONS,
@@ -36,7 +46,14 @@ export function InventoryView({ householdId }: Props) {
   const [initialValues, setInitialValues] =
     useState<ItemFormInitialValues | undefined>(undefined);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [notificationStatus, setNotificationStatus] =
+    useState<NotificationStatus>("unsupported");
   const handlingScanRef = useRef(false);
+  const notifiedRef = useRef(false);
+
+  useEffect(() => {
+    setNotificationStatus(getNotificationStatus());
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -50,6 +67,47 @@ export function InventoryView({ householdId }: Props) {
     );
     return unsubscribe;
   }, [householdId]);
+
+  const summary = useMemo(() => summarizeExpirations(items), [items]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (notifiedRef.current) return;
+    if (notificationStatus !== "granted") return;
+    if (summary.totalAlerts === 0) return;
+    if (!shouldNotifyToday()) return;
+
+    const title =
+      summary.expired.length > 0
+        ? `期限切れ ${summary.expired.length} 件あります`
+        : `期限間近 ${summary.soon.length} 件あります`;
+    const previewNames = [...summary.expired, ...summary.soon]
+      .slice(0, 3)
+      .map((i) => i.name)
+      .join("、");
+    const body =
+      summary.totalAlerts > 3
+        ? `${previewNames} ほか ${summary.totalAlerts - 3} 件`
+        : previewNames;
+
+    const sent = sendNotification({ title, body, tag: "expiration-summary" });
+    if (sent) {
+      markNotifiedToday();
+      notifiedRef.current = true;
+    }
+  }, [loading, notificationStatus, summary]);
+
+  const handleEnableNotifications = useCallback(async () => {
+    const result = await requestNotificationPermission();
+    setNotificationStatus(result);
+    if (result === "granted") {
+      toast.success("通知を有効にしました");
+    } else if (result === "denied") {
+      toast.error("通知が拒否されました。ブラウザの設定から許可してください。");
+    } else if (result === "unsupported") {
+      toast.error("このブラウザは通知に対応していません");
+    }
+  }, []);
 
   const filtered = useMemo(() => {
     if (tab === "all") return items;
@@ -119,6 +177,12 @@ export function InventoryView({ householdId }: Props) {
           </Button>
         </div>
       </div>
+
+      <ExpirationSummaryBanner
+        summary={summary}
+        notificationStatus={notificationStatus}
+        onEnableNotifications={handleEnableNotifications}
+      />
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as TabValue)}>
         <TabsList className="w-full overflow-x-auto">
