@@ -44,31 +44,71 @@ export function BarcodeScannerDialog({
   const controlsRef = useRef<IScannerControls | null>(null);
   const onScanRef = useRef(onScan);
   const [error, setError] = useState<string | null>(null);
+  const [debug, setDebug] = useState<string[]>([]);
 
   useEffect(() => {
     onScanRef.current = onScan;
   }, [onScan]);
 
   useEffect(() => {
-    if (!open || !stream) return;
+    if (!open) return;
+    if (!stream) {
+      setDebug((d) => [...d, "stream=null"]);
+      return;
+    }
     const videoEl = videoRef.current;
-    if (!videoEl) return;
+    if (!videoEl) {
+      setDebug((d) => [...d, "videoEl=null"]);
+      return;
+    }
 
     let cancelled = false;
     setError(null);
+    setDebug([]);
+
+    const log = (msg: string) => {
+      console.log("[scanner]", msg);
+      setDebug((d) => [...d, msg]);
+    };
+
+    const tracks = stream.getVideoTracks();
+    log(`stream tracks=${tracks.length}`);
+    tracks.forEach((t, i) => {
+      log(`track[${i}] state=${t.readyState} enabled=${t.enabled} muted=${t.muted} label=${t.label}`);
+    });
 
     const hints = new Map();
     hints.set(DecodeHintType.POSSIBLE_FORMATS, SCAN_FORMATS);
     const reader = new BrowserMultiFormatReader(hints);
 
-    // 取得済みストリームを video に attach (iOS Safari でも確実に表示するため明示的に play)
     videoEl.srcObject = stream;
+    log("srcObject set");
+
     const playPromise = videoEl.play();
-    if (playPromise && typeof playPromise.catch === "function") {
-      playPromise.catch((err) => {
-        console.error("video.play() failed", err);
-      });
+    if (playPromise && typeof playPromise.then === "function") {
+      playPromise
+        .then(() => {
+          log(`play() resolved (paused=${videoEl.paused})`);
+        })
+        .catch((err) => {
+          log(`play() rejected: ${err?.name ?? "?"}: ${err?.message ?? err}`);
+        });
+    } else {
+      log("play() returned non-promise");
     }
+
+    const onLoadedMetadata = () => {
+      log(`loadedmetadata vw=${videoEl.videoWidth} vh=${videoEl.videoHeight}`);
+    };
+    const onPlaying = () => {
+      log(`playing readyState=${videoEl.readyState}`);
+    };
+    const onStalled = () => log("stalled");
+    const onSuspend = () => log("suspend");
+    videoEl.addEventListener("loadedmetadata", onLoadedMetadata);
+    videoEl.addEventListener("playing", onPlaying);
+    videoEl.addEventListener("stalled", onStalled);
+    videoEl.addEventListener("suspend", onSuspend);
 
     reader
       .decodeFromStream(stream, videoEl, (result, _err, controls) => {
@@ -84,19 +124,24 @@ export function BarcodeScannerDialog({
           controlsRef.current = controls;
         }
       })
+      .then(() => log("decodeFromStream started"))
       .catch((err) => {
-        console.error("Scanner start failed", err);
+        log(`decodeFromStream failed: ${err?.message ?? err}`);
         if (!cancelled) {
           setError(
             err instanceof Error
-              ? `スキャナーの起動に失敗しました: ${err.message}`
-              : "スキャナーの起動に失敗しました",
+              ? `スキャナー起動失敗: ${err.message}`
+              : "スキャナー起動失敗",
           );
         }
       });
 
     return () => {
       cancelled = true;
+      videoEl.removeEventListener("loadedmetadata", onLoadedMetadata);
+      videoEl.removeEventListener("playing", onPlaying);
+      videoEl.removeEventListener("stalled", onStalled);
+      videoEl.removeEventListener("suspend", onSuspend);
       controlsRef.current?.stop();
       controlsRef.current = null;
       if (videoEl) {
@@ -130,6 +175,11 @@ export function BarcodeScannerDialog({
               autoPlay
             />
           </div>
+          {debug.length > 0 && (
+            <pre className="max-h-32 overflow-auto rounded bg-muted p-2 text-[10px] leading-tight whitespace-pre-wrap">
+              {debug.join("\n")}
+            </pre>
+          )}
         </div>
 
         <DialogFooter>
