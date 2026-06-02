@@ -12,18 +12,22 @@ const features = [
   {
     title: "カテゴリ別に管理",
     description: "冷蔵庫・冷凍庫・棚など、保管場所ごとに整理できます。",
+    detail: "食品をカテゴリに分けて登録・表示。カテゴリ名はカスタマイズでき、自分の家の棚構成に合わせて管理できます。",
   },
   {
     title: "賞味期限アラート",
     description: "期限が近づいた食品をひと目で把握。通知でお知らせも。",
+    detail: "賞味期限を登録しておくと、期限が近い食品が一覧上部にハイライト表示されます。食品ロスの防止に役立ちます。",
   },
   {
     title: "必要数 → 買い物リスト",
     description: "在庫が必要数を下回ったら、買い物リストに自動で追加。",
+    detail: "食品ごとに「必要数」を設定できます。在庫数が必要数を下回ると在庫不足として表示され、補充のタイミングがひと目でわかります。",
   },
   {
     title: "バーコードでサッと登録",
     description: "スマホのカメラで商品バーコードを読み取って登録。",
+    detail: "商品のバーコードをカメラで読み取ると、商品名を自動入力。一から名前を打ち込む手間なく、素早く在庫を追加できます。",
   },
 ];
 
@@ -63,7 +67,7 @@ export default function Home() {
                 <CardDescription>{feature.description}</CardDescription>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground">
-                Phase 1 セットアップ完了。次のフェーズで実装します。
+                {feature.detail}
               </CardContent>
             </Card>
           ))}
