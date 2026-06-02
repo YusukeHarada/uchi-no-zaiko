@@ -20,6 +20,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onScan: (barcode: string) => void;
+  stream: MediaStream | null;
 }
 
 const SCAN_FORMATS = [
@@ -33,74 +34,76 @@ const SCAN_FORMATS = [
   BarcodeFormat.QR_CODE,
 ];
 
-export function BarcodeScannerDialog({ open, onOpenChange, onScan }: Props) {
+export function BarcodeScannerDialog({
+  open,
+  onOpenChange,
+  onScan,
+  stream,
+}: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
   const onScanRef = useRef(onScan);
   const [error, setError] = useState<string | null>(null);
-  const [starting, setStarting] = useState(false);
 
   useEffect(() => {
     onScanRef.current = onScan;
   }, [onScan]);
 
   useEffect(() => {
-    if (!open) return;
-
+    if (!open || !stream) return;
     const videoEl = videoRef.current;
     if (!videoEl) return;
 
     let cancelled = false;
     setError(null);
-    setStarting(true);
 
     const hints = new Map();
     hints.set(DecodeHintType.POSSIBLE_FORMATS, SCAN_FORMATS);
     const reader = new BrowserMultiFormatReader(hints);
 
+    // 取得済みストリームを video に attach (iOS Safari でも確実に表示するため明示的に play)
+    videoEl.srcObject = stream;
+    const playPromise = videoEl.play();
+    if (playPromise && typeof playPromise.catch === "function") {
+      playPromise.catch((err) => {
+        console.error("video.play() failed", err);
+      });
+    }
+
     reader
-      .decodeFromConstraints(
-        { video: { facingMode: { ideal: "environment" } } },
-        videoEl,
-        (result, _err, controls) => {
-          if (cancelled) {
-            controls.stop();
-            return;
-          }
-          if (result) {
-            controlsRef.current = controls;
-            controls.stop();
-            onScanRef.current(result.getText());
-          } else {
-            controlsRef.current = controls;
-          }
-        },
-      )
-      .then((controls) => {
+      .decodeFromStream(stream, videoEl, (result, _err, controls) => {
         if (cancelled) {
           controls.stop();
           return;
         }
-        controlsRef.current = controls;
-        setStarting(false);
+        if (result) {
+          controlsRef.current = controls;
+          controls.stop();
+          onScanRef.current(result.getText());
+        } else {
+          controlsRef.current = controls;
+        }
       })
       .catch((err) => {
         console.error("Scanner start failed", err);
-        if (cancelled) return;
-        const message =
-          err instanceof Error && err.name === "NotAllowedError"
-            ? "カメラへのアクセスが拒否されました。ブラウザの設定で許可してください。"
-            : "カメラを起動できませんでした。";
-        setError(message);
-        setStarting(false);
+        if (!cancelled) {
+          setError(
+            err instanceof Error
+              ? `スキャナーの起動に失敗しました: ${err.message}`
+              : "スキャナーの起動に失敗しました",
+          );
+        }
       });
 
     return () => {
       cancelled = true;
       controlsRef.current?.stop();
       controlsRef.current = null;
+      if (videoEl) {
+        videoEl.srcObject = null;
+      }
     };
-  }, [open]);
+  }, [open, stream]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -127,11 +130,6 @@ export function BarcodeScannerDialog({ open, onOpenChange, onScan }: Props) {
               autoPlay
             />
           </div>
-          {starting && !error ? (
-            <p className="text-center text-xs text-muted-foreground">
-              カメラを起動中…
-            </p>
-          ) : null}
         </div>
 
         <DialogFooter>

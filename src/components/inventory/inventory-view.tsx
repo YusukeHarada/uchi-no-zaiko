@@ -46,6 +46,7 @@ export function InventoryView({ householdId }: Props) {
   const [initialValues, setInitialValues] =
     useState<ItemFormInitialValues | undefined>(undefined);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [scannerStream, setScannerStream] = useState<MediaStream | null>(null);
   const [notificationStatus, setNotificationStatus] =
     useState<NotificationStatus>("unsupported");
   const handlingScanRef = useRef(false);
@@ -97,6 +98,11 @@ export function InventoryView({ householdId }: Props) {
     }
   }, [loading, notificationStatus, summary]);
 
+  const stopScannerStream = useCallback((stream: MediaStream | null) => {
+    if (!stream) return;
+    stream.getTracks().forEach((t) => t.stop());
+  }, []);
+
   const handleOpenScanner = useCallback(async () => {
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       toast.error("このブラウザはカメラに対応していません");
@@ -104,11 +110,13 @@ export function InventoryView({ householdId }: Props) {
     }
     try {
       // iOS Safari はユーザー操作の直接の応答内で getUserMedia を呼ばないと
-      // 権限ダイアログを出さないため、ここで先に取得して即座に停止する
+      // 権限ダイアログを出さない & ストリーム attach が安定しないため、ここで
+      // 取得したストリームをそのまま Dialog の video 要素に渡す
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
+        video: { facingMode: { ideal: "environment" } },
+        audio: false,
       });
-      stream.getTracks().forEach((t) => t.stop());
+      setScannerStream(stream);
       setScannerOpen(true);
     } catch (error) {
       console.error("Camera permission denied", error);
@@ -117,6 +125,23 @@ export function InventoryView({ householdId }: Props) {
       );
     }
   }, []);
+
+  const handleCloseScanner = useCallback(
+    (open: boolean) => {
+      setScannerOpen(open);
+      if (!open) {
+        stopScannerStream(scannerStream);
+        setScannerStream(null);
+      }
+    },
+    [scannerStream, stopScannerStream],
+  );
+
+  useEffect(() => {
+    return () => {
+      stopScannerStream(scannerStream);
+    };
+  }, [scannerStream, stopScannerStream]);
 
   const handleEnableNotifications = useCallback(async () => {
     const result = await requestNotificationPermission();
@@ -160,6 +185,8 @@ export function InventoryView({ householdId }: Props) {
     if (handlingScanRef.current) return;
     handlingScanRef.current = true;
     setScannerOpen(false);
+    stopScannerStream(scannerStream);
+    setScannerStream(null);
     toast.info(`バーコード: ${barcode}`);
     try {
       const result = await lookupProductByBarcode(barcode);
@@ -180,7 +207,7 @@ export function InventoryView({ householdId }: Props) {
     } finally {
       handlingScanRef.current = false;
     }
-  }, []);
+  }, [scannerStream, stopScannerStream]);
 
   const defaultLocation: StorageLocation =
     tab === "all" ? "fridge" : (tab as StorageLocation);
@@ -256,8 +283,9 @@ export function InventoryView({ householdId }: Props) {
 
       <BarcodeScannerDialog
         open={scannerOpen}
-        onOpenChange={setScannerOpen}
+        onOpenChange={handleCloseScanner}
         onScan={handleScan}
+        stream={scannerStream}
       />
     </div>
   );
