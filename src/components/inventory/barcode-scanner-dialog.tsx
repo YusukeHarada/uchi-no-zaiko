@@ -5,7 +5,7 @@ import {
   type IScannerControls,
 } from "@zxing/browser";
 import { BarcodeFormat, DecodeHintType } from "@zxing/library";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -40,11 +40,15 @@ export function BarcodeScannerDialog({
   onScan,
   stream,
 }: Props) {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
   const onScanRef = useRef(onScan);
   const [error, setError] = useState<string | null>(null);
   const [debug, setDebug] = useState<string[]>([]);
+
+  const videoRefCallback = useCallback((el: HTMLVideoElement | null) => {
+    setVideoEl(el);
+  }, []);
 
   useEffect(() => {
     onScanRef.current = onScan;
@@ -56,9 +60,8 @@ export function BarcodeScannerDialog({
       setDebug((d) => [...d, "stream=null"]);
       return;
     }
-    const videoEl = videoRef.current;
     if (!videoEl) {
-      setDebug((d) => [...d, "videoEl=null"]);
+      setDebug((d) => [...d, "waiting for video mount"]);
       return;
     }
 
@@ -148,7 +151,7 @@ export function BarcodeScannerDialog({
         videoEl.srcObject = null;
       }
     };
-  }, [open, stream]);
+  }, [open, stream, videoEl]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -168,7 +171,7 @@ export function BarcodeScannerDialog({
           ) : null}
           <div className="aspect-[3/2] w-full overflow-hidden rounded-lg bg-black">
             <video
-              ref={videoRef}
+              ref={videoRefCallback}
               className="size-full object-cover"
               playsInline
               muted
