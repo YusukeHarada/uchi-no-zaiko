@@ -1,5 +1,6 @@
 "use client";
 
+import { LogOut } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -68,38 +70,52 @@ export function AppHeader() {
             })}
           </nav>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button variant="ghost" size="icon" className="size-9 rounded-full" />
-            }
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-9 rounded-full"
+            title="ログアウト"
+            onClick={handleSignOut}
           >
-            <Avatar className="size-9">
-              {user?.photoURL ? (
-                <AvatarImage src={user.photoURL} alt={user.displayName ?? ""} />
-              ) : null}
-              <AvatarFallback>{initial}</AvatarFallback>
-            </Avatar>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-48">
-            <DropdownMenuLabel className="flex flex-col">
-              <span>{user?.displayName ?? "ユーザー"}</span>
-              {user?.email ? (
-                <span className="text-xs font-normal text-muted-foreground">
-                  {user.email}
-                </span>
-              ) : null}
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => router.push("/settings/categories")}
+            <LogOut className="size-4" />
+            <span className="sr-only">ログアウト</span>
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button variant="ghost" size="icon" className="size-9 rounded-full" />
+              }
             >
-              カテゴリ管理
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleSignOut}>ログアウト</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <Avatar className="size-9">
+                {user?.photoURL ? (
+                  <AvatarImage src={user.photoURL} alt={user.displayName ?? ""} />
+                ) : null}
+                <AvatarFallback>{initial}</AvatarFallback>
+              </Avatar>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-48">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="flex flex-col">
+                  <span>{user?.displayName ?? "ユーザー"}</span>
+                  {user?.email ? (
+                    <span className="text-xs font-normal text-muted-foreground">
+                      {user.email}
+                    </span>
+                  ) : null}
+                </DropdownMenuLabel>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  onClick={() => router.push("/settings/categories")}
+                >
+                  カテゴリ管理
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </header>
   );
