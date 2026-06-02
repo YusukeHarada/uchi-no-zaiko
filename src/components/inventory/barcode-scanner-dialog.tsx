@@ -44,8 +44,9 @@ export function BarcodeScannerDialog({
   const controlsRef = useRef<IScannerControls | null>(null);
   const onScanRef = useRef(onScan);
   const [error, setError] = useState<string | null>(null);
-  const [debug, setDebug] = useState<string[]>([]);
 
+  // Base UI の Dialog は children を遅延マウントするため、useRef では
+  // 要素を検知できない。callback ref + state で確実に待ち受ける。
   const videoRefCallback = useCallback((el: HTMLVideoElement | null) => {
     setVideoEl(el);
   }, []);
@@ -55,63 +56,19 @@ export function BarcodeScannerDialog({
   }, [onScan]);
 
   useEffect(() => {
-    if (!open) return;
-    if (!stream) {
-      setDebug((d) => [...d, "stream=null"]);
-      return;
-    }
-    if (!videoEl) {
-      setDebug((d) => [...d, "waiting for video mount"]);
-      return;
-    }
+    if (!open || !stream || !videoEl) return;
 
     let cancelled = false;
     setError(null);
-    setDebug([]);
-
-    const log = (msg: string) => {
-      console.log("[scanner]", msg);
-      setDebug((d) => [...d, msg]);
-    };
-
-    const tracks = stream.getVideoTracks();
-    log(`stream tracks=${tracks.length}`);
-    tracks.forEach((t, i) => {
-      log(`track[${i}] state=${t.readyState} enabled=${t.enabled} muted=${t.muted} label=${t.label}`);
-    });
 
     const hints = new Map();
     hints.set(DecodeHintType.POSSIBLE_FORMATS, SCAN_FORMATS);
     const reader = new BrowserMultiFormatReader(hints);
 
     videoEl.srcObject = stream;
-    log("srcObject set");
-
-    const playPromise = videoEl.play();
-    if (playPromise && typeof playPromise.then === "function") {
-      playPromise
-        .then(() => {
-          log(`play() resolved (paused=${videoEl.paused})`);
-        })
-        .catch((err) => {
-          log(`play() rejected: ${err?.name ?? "?"}: ${err?.message ?? err}`);
-        });
-    } else {
-      log("play() returned non-promise");
-    }
-
-    const onLoadedMetadata = () => {
-      log(`loadedmetadata vw=${videoEl.videoWidth} vh=${videoEl.videoHeight}`);
-    };
-    const onPlaying = () => {
-      log(`playing readyState=${videoEl.readyState}`);
-    };
-    const onStalled = () => log("stalled");
-    const onSuspend = () => log("suspend");
-    videoEl.addEventListener("loadedmetadata", onLoadedMetadata);
-    videoEl.addEventListener("playing", onPlaying);
-    videoEl.addEventListener("stalled", onStalled);
-    videoEl.addEventListener("suspend", onSuspend);
+    videoEl.play().catch((err) => {
+      console.error("video.play() failed", err);
+    });
 
     reader
       .decodeFromStream(stream, videoEl, (result, _err, controls) => {
@@ -127,9 +84,8 @@ export function BarcodeScannerDialog({
           controlsRef.current = controls;
         }
       })
-      .then(() => log("decodeFromStream started"))
       .catch((err) => {
-        log(`decodeFromStream failed: ${err?.message ?? err}`);
+        console.error("Scanner start failed", err);
         if (!cancelled) {
           setError(
             err instanceof Error
@@ -141,15 +97,9 @@ export function BarcodeScannerDialog({
 
     return () => {
       cancelled = true;
-      videoEl.removeEventListener("loadedmetadata", onLoadedMetadata);
-      videoEl.removeEventListener("playing", onPlaying);
-      videoEl.removeEventListener("stalled", onStalled);
-      videoEl.removeEventListener("suspend", onSuspend);
       controlsRef.current?.stop();
       controlsRef.current = null;
-      if (videoEl) {
-        videoEl.srcObject = null;
-      }
+      videoEl.srcObject = null;
     };
   }, [open, stream, videoEl]);
 
@@ -178,11 +128,6 @@ export function BarcodeScannerDialog({
               autoPlay
             />
           </div>
-          {debug.length > 0 && (
-            <pre className="max-h-32 overflow-auto rounded bg-muted p-2 text-[10px] leading-tight whitespace-pre-wrap">
-              {debug.join("\n")}
-            </pre>
-          )}
         </div>
 
         <DialogFooter>
