@@ -48,6 +48,10 @@ service cloud.firestore {
       match /shoppingList/{itemId} {
         allow read, write: if isMember(hid);
       }
+
+      match /categories/{categoryId} {
+        allow read, write: if isMember(hid);
+      }
     }
   }
 }

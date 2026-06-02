@@ -18,6 +18,7 @@ import type { InventoryItem, StorageLocation } from "@/lib/types/inventory";
 export interface ItemInput {
   name: string;
   location: StorageLocation;
+  categoryId?: string | null;
   quantity: number;
   requiredQuantity: number;
   unit?: string;
@@ -30,6 +31,7 @@ function toFirestorePayload(input: ItemInput) {
   return {
     name: input.name.trim(),
     location: input.location,
+    categoryId: input.categoryId ?? null,
     quantity: input.quantity,
     requiredQuantity: input.requiredQuantity,
     unit: input.unit?.trim() || null,

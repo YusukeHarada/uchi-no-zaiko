@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/app-header";
 import { useAuth } from "@/lib/firebase/auth-context";
+import { ensureDefaultCategories } from "@/lib/firebase/categories";
+import { CategoriesProvider } from "@/lib/firebase/categories-context";
 import { ensureUserAndHousehold } from "@/lib/firebase/household";
 import { HouseholdProvider } from "@/lib/firebase/household-context";
 
@@ -27,7 +29,10 @@ export default function ProtectedLayout({
     let cancelled = false;
     setBootstrapping(true);
     ensureUserAndHousehold(user)
-      .then((id) => {
+      .then(async (id) => {
+        await ensureDefaultCategories(id).catch((err) => {
+          console.error("Failed to seed default categories", err);
+        });
         if (!cancelled) {
           setHouseholdId(id);
           setBootstrapping(false);
@@ -53,8 +58,10 @@ export default function ProtectedLayout({
 
   return (
     <HouseholdProvider householdId={householdId}>
-      <AppHeader />
-      <main className="flex-1">{children}</main>
+      <CategoriesProvider>
+        <AppHeader />
+        <main className="flex-1">{children}</main>
+      </CategoriesProvider>
     </HouseholdProvider>
   );
 }

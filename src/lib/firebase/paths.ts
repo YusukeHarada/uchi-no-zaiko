@@ -8,4 +8,7 @@ export const fsPath = {
   shoppingList: (hid: string) => `households/${hid}/shoppingList`,
   shoppingListItem: (hid: string, itemId: string) =>
     `households/${hid}/shoppingList/${itemId}`,
+  categories: (hid: string) => `households/${hid}/categories`,
+  category: (hid: string, categoryId: string) =>
+    `households/${hid}/categories/${categoryId}`,
 };

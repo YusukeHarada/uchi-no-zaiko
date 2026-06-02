@@ -16,9 +16,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useCategories } from "@/lib/firebase/categories-context";
 import { deleteItem } from "@/lib/firebase/items";
 import { formatDate, getExpirationInfo } from "@/lib/expiration";
-import type { InventoryItem } from "@/lib/types/inventory";
+import { cn } from "@/lib/utils";
+import {
+  CATEGORY_COLOR_CLASSES,
+  type InventoryItem,
+} from "@/lib/types/inventory";
 
 interface Props {
   item: InventoryItem;
@@ -27,6 +32,8 @@ interface Props {
 }
 
 export function ItemCard({ item, householdId, onEdit }: Props) {
+  const { byId } = useCategories();
+  const category = item.categoryId ? byId.get(item.categoryId) : null;
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const expiration = getExpirationInfo(item.expiresAt);
@@ -54,6 +61,14 @@ export function ItemCard({ item, householdId, onEdit }: Props) {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="truncate text-base font-semibold">{item.name}</h3>
+              {category && (
+                <Badge
+                  variant="outline"
+                  className={cn(CATEGORY_COLOR_CLASSES[category.color])}
+                >
+                  {category.name}
+                </Badge>
+              )}
               {expiration.status === "expired" && (
                 <Badge variant="destructive">期限切れ {expiration.label}</Badge>
               )}

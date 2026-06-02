@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useCategories } from "@/lib/firebase/categories-context";
 import { addItem, updateItem, type ItemInput } from "@/lib/firebase/items";
 import {
   STORAGE_LOCATIONS,
@@ -29,6 +30,8 @@ import {
   type InventoryItem,
   type StorageLocation,
 } from "@/lib/types/inventory";
+
+const UNCATEGORIZED = "__none__";
 
 export interface ItemFormInitialValues {
   name?: string;
@@ -69,8 +72,10 @@ export function ItemFormDialog({
   initialValues,
 }: Props) {
   const isEdit = !!item;
+  const { categories } = useCategories();
   const [name, setName] = useState("");
   const [location, setLocation] = useState<StorageLocation>(defaultLocation);
+  const [categoryId, setCategoryId] = useState<string>(UNCATEGORIZED);
   const [quantity, setQuantity] = useState("1");
   const [requiredQuantity, setRequiredQuantity] = useState("0");
   const [unit, setUnit] = useState("");
@@ -84,6 +89,7 @@ export function ItemFormDialog({
     if (item) {
       setName(item.name);
       setLocation(item.location);
+      setCategoryId(item.categoryId ?? UNCATEGORIZED);
       setQuantity(String(item.quantity));
       setRequiredQuantity(String(item.requiredQuantity));
       setUnit(item.unit ?? "");
@@ -93,6 +99,7 @@ export function ItemFormDialog({
     } else {
       setName(initialValues?.name ?? "");
       setLocation(defaultLocation);
+      setCategoryId(UNCATEGORIZED);
       setQuantity("1");
       setRequiredQuantity("0");
       setUnit("");
@@ -122,6 +129,7 @@ export function ItemFormDialog({
     const input: ItemInput = {
       name: name.trim(),
       location,
+      categoryId: categoryId === UNCATEGORIZED ? null : categoryId,
       quantity: qty,
       requiredQuantity: req,
       unit: unit.trim() || undefined,
@@ -170,23 +178,44 @@ export function ItemFormDialog({
             />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="location">保管場所 *</Label>
-            <Select
-              value={location}
-              onValueChange={(v) => setLocation(v as StorageLocation)}
-            >
-              <SelectTrigger id="location" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STORAGE_LOCATIONS.map((loc) => (
-                  <SelectItem key={loc} value={loc}>
-                    {STORAGE_LOCATION_LABELS[loc]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="location">保管場所 *</Label>
+              <Select
+                value={location}
+                onValueChange={(v) => setLocation(v as StorageLocation)}
+              >
+                <SelectTrigger id="location" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STORAGE_LOCATIONS.map((loc) => (
+                    <SelectItem key={loc} value={loc}>
+                      {STORAGE_LOCATION_LABELS[loc]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="category">カテゴリ</Label>
+              <Select
+                value={categoryId}
+                onValueChange={(v) => setCategoryId(v ?? UNCATEGORIZED)}
+              >
+                <SelectTrigger id="category" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={UNCATEGORIZED}>未分類</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3">

@@ -91,6 +91,12 @@ export function AppHeader() {
               ) : null}
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => router.push("/settings/categories")}
+            >
+              カテゴリ管理
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleSignOut}>ログアウト</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
