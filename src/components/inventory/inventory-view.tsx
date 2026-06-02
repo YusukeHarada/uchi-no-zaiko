@@ -97,6 +97,27 @@ export function InventoryView({ householdId }: Props) {
     }
   }, [loading, notificationStatus, summary]);
 
+  const handleOpenScanner = useCallback(async () => {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      toast.error("このブラウザはカメラに対応していません");
+      return;
+    }
+    try {
+      // iOS Safari はユーザー操作の直接の応答内で getUserMedia を呼ばないと
+      // 権限ダイアログを出さないため、ここで先に取得して即座に停止する
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+      });
+      stream.getTracks().forEach((t) => t.stop());
+      setScannerOpen(true);
+    } catch (error) {
+      console.error("Camera permission denied", error);
+      toast.error(
+        "カメラを使用できません。ブラウザの設定でカメラを許可してください。",
+      );
+    }
+  }, []);
+
   const handleEnableNotifications = useCallback(async () => {
     const result = await requestNotificationPermission();
     setNotificationStatus(result);
@@ -169,7 +190,7 @@ export function InventoryView({ householdId }: Props) {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">在庫</h1>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setScannerOpen(true)}>
+          <Button variant="outline" onClick={handleOpenScanner}>
             <ScanLine /> スキャン
           </Button>
           <Button onClick={openCreate}>
