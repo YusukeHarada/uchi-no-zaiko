@@ -1,9 +1,17 @@
 "use client";
 
-import { Plus, ScanLine } from "lucide-react";
+import { Plus, ScanLine, Search, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarcodeScannerDialog } from "@/components/inventory/barcode-scanner-dialog";
 import { ExpirationSummaryBanner } from "@/components/inventory/expiration-summary";
@@ -12,6 +20,7 @@ import {
   ItemFormDialog,
   type ItemFormInitialValues,
 } from "@/components/inventory/item-form-dialog";
+import { useCategories } from "@/lib/firebase/categories-context";
 import { subscribeToItems } from "@/lib/firebase/items";
 import { summarizeExpirations } from "@/lib/expiration";
 import {
@@ -37,10 +46,25 @@ interface Props {
 const TAB_VALUES = ["all", ...STORAGE_LOCATIONS] as const;
 type TabValue = (typeof TAB_VALUES)[number];
 
+const SORT_OPTIONS = [
+  { value: "expiration", label: "期限が近い順" },
+  { value: "name", label: "名前順" },
+  { value: "updated", label: "更新が新しい順" },
+] as const;
+type SortValue = (typeof SORT_OPTIONS)[number]["value"];
+
+const CATEGORY_ALL = "__all__";
+const CATEGORY_NONE = "__none__";
+
 export function InventoryView({ householdId }: Props) {
+  const { categories } = useCategories();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabValue>("all");
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>(CATEGORY_ALL);
+  const [sortBy, setSortBy] = useState<SortValue>("expiration");
+  const [showOnlyLowStock, setShowOnlyLowStock] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<InventoryItem | null>(null);
   const [initialValues, setInitialValues] =
@@ -156,9 +180,49 @@ export function InventoryView({ householdId }: Props) {
   }, []);
 
   const filtered = useMemo(() => {
-    if (tab === "all") return items;
-    return items.filter((i) => i.location === tab);
-  }, [items, tab]);
+    const q = search.trim().toLowerCase();
+    let next = items;
+
+    if (tab !== "all") {
+      next = next.filter((i) => i.location === tab);
+    }
+    if (categoryFilter === CATEGORY_NONE) {
+      next = next.filter((i) => !i.categoryId);
+    } else if (categoryFilter !== CATEGORY_ALL) {
+      next = next.filter((i) => i.categoryId === categoryFilter);
+    }
+    if (showOnlyLowStock) {
+      next = next.filter(
+        (i) => i.requiredQuantity > 0 && i.quantity < i.requiredQuantity,
+      );
+    }
+    if (q) {
+      next = next.filter(
+        (i) =>
+          i.name.toLowerCase().includes(q) ||
+          (i.note ?? "").toLowerCase().includes(q) ||
+          (i.barcode ?? "").toLowerCase().includes(q),
+      );
+    }
+
+    if (sortBy === "name") {
+      next = [...next].sort((a, b) =>
+        a.name.localeCompare(b.name, "ja"),
+      );
+    } else if (sortBy === "expiration") {
+      next = [...next].sort((a, b) => {
+        const at = a.expiresAt?.toMillis();
+        const bt = b.expiresAt?.toMillis();
+        if (at == null && bt == null) return 0;
+        if (at == null) return 1;
+        if (bt == null) return -1;
+        return at - bt;
+      });
+    }
+    // "updated" は Firestore からの順序 (updatedAt desc) をそのまま使う
+
+    return next;
+  }, [items, tab, categoryFilter, sortBy, showOnlyLowStock, search]);
 
   const countByLocation = useMemo(() => {
     const map = new Map<StorageLocation, number>();
@@ -242,6 +306,85 @@ export function InventoryView({ householdId }: Props) {
           ))}
         </TabsList>
 
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[12rem] flex-1">
+            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="名前 / メモ / バーコードで検索"
+              className="h-9 pl-8 pr-8"
+              aria-label="検索"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                aria-label="検索をクリア"
+                className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-4" />
+              </button>
+            )}
+          </div>
+          <Select
+            value={categoryFilter}
+            onValueChange={(v) => setCategoryFilter(v ?? CATEGORY_ALL)}
+          >
+            <SelectTrigger className="h-9 w-36" aria-label="カテゴリで絞り込み">
+              <SelectValue>
+                {(v: string | null) => {
+                  if (!v || v === CATEGORY_ALL) return "カテゴリ: 全て";
+                  if (v === CATEGORY_NONE) return "未分類";
+                  return (
+                    categories.find((c) => c.id === v)?.name ?? "(不明)"
+                  );
+                }}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={CATEGORY_ALL}>全て</SelectItem>
+              <SelectItem value={CATEGORY_NONE}>未分類</SelectItem>
+              {categories.map((cat) => (
+                <SelectItem key={cat.id} value={cat.id}>
+                  {cat.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={sortBy}
+            onValueChange={(v) => setSortBy(v as SortValue)}
+          >
+            <SelectTrigger className="h-9 w-40" aria-label="並び順">
+              <SelectValue>
+                {(v: SortValue | null) =>
+                  v
+                    ? (SORT_OPTIONS.find((o) => o.value === v)?.label ?? "")
+                    : ""
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {SORT_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            type="button"
+            variant={showOnlyLowStock ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowOnlyLowStock((v) => !v)}
+            className="h-9"
+            aria-pressed={showOnlyLowStock}
+          >
+            在庫不足のみ
+          </Button>
+        </div>
+
         {TAB_VALUES.map((value) => (
           <TabsContent key={value} value={value} className="mt-4 space-y-2">
             {loading ? (
@@ -250,7 +393,9 @@ export function InventoryView({ householdId }: Props) {
               </p>
             ) : filtered.length === 0 ? (
               <div className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground">
-                アイテムがありません。「追加」または「スキャン」から登録できます。
+                {items.length === 0
+                  ? "アイテムがありません。「追加」または「スキャン」から登録できます。"
+                  : "条件に合うアイテムがありません。"}
               </div>
             ) : (
               filtered.map((item) => (
