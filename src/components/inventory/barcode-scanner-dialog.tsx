@@ -1,11 +1,11 @@
 "use client";
 
 import {
-  Html5Qrcode,
-  Html5QrcodeSupportedFormats,
-  type Html5QrcodeCameraScanConfig,
-} from "html5-qrcode";
-import { useEffect, useId, useRef, useState } from "react";
+  BrowserMultiFormatReader,
+  type IScannerControls,
+} from "@zxing/browser";
+import { BarcodeFormat, DecodeHintType } from "@zxing/library";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,89 +23,84 @@ interface Props {
 }
 
 const SCAN_FORMATS = [
-  Html5QrcodeSupportedFormats.EAN_13,
-  Html5QrcodeSupportedFormats.EAN_8,
-  Html5QrcodeSupportedFormats.UPC_A,
-  Html5QrcodeSupportedFormats.UPC_E,
-  Html5QrcodeSupportedFormats.CODE_128,
-  Html5QrcodeSupportedFormats.CODE_39,
-  Html5QrcodeSupportedFormats.ITF,
-  Html5QrcodeSupportedFormats.QR_CODE,
+  BarcodeFormat.EAN_13,
+  BarcodeFormat.EAN_8,
+  BarcodeFormat.UPC_A,
+  BarcodeFormat.UPC_E,
+  BarcodeFormat.CODE_128,
+  BarcodeFormat.CODE_39,
+  BarcodeFormat.ITF,
+  BarcodeFormat.QR_CODE,
 ];
 
-const SCAN_CONFIG: Html5QrcodeCameraScanConfig = {
-  fps: 10,
-  qrbox: { width: 260, height: 160 },
-  aspectRatio: 1.5,
-};
-
 export function BarcodeScannerDialog({ open, onOpenChange, onScan }: Props) {
-  const elementId = useId().replace(/[:]/g, "");
-  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const controlsRef = useRef<IScannerControls | null>(null);
+  const onScanRef = useRef(onScan);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
 
   useEffect(() => {
+    onScanRef.current = onScan;
+  }, [onScan]);
+
+  useEffect(() => {
     if (!open) return;
+
+    const videoEl = videoRef.current;
+    if (!videoEl) return;
 
     let cancelled = false;
     setError(null);
     setStarting(true);
 
-    const start = async () => {
-      try {
-        const scanner = new Html5Qrcode(elementId, {
-          formatsToSupport: SCAN_FORMATS,
-          verbose: false,
-        });
-        scannerRef.current = scanner;
-        await scanner.start(
-          { facingMode: "environment" },
-          SCAN_CONFIG,
-          (decodedText) => {
-            if (cancelled) return;
-            onScan(decodedText);
-          },
-          undefined,
-        );
-        if (cancelled) {
-          await scanner.stop().catch(() => undefined);
-          scanner.clear();
-          scannerRef.current = null;
-        } else {
-          setStarting(false);
-        }
-      } catch (err) {
-        console.error("Camera start failed", err);
-        if (!cancelled) {
-          setError(
-            "カメラを起動できませんでした。ブラウザのカメラ権限を確認してください。",
-          );
-          setStarting(false);
-        }
-      }
-    };
+    const hints = new Map();
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, SCAN_FORMATS);
+    const reader = new BrowserMultiFormatReader(hints);
 
-    start();
+    reader
+      .decodeFromConstraints(
+        { video: { facingMode: { ideal: "environment" } } },
+        videoEl,
+        (result, _err, controls) => {
+          if (cancelled) {
+            controls.stop();
+            return;
+          }
+          if (result) {
+            controlsRef.current = controls;
+            controls.stop();
+            onScanRef.current(result.getText());
+          } else {
+            controlsRef.current = controls;
+          }
+        },
+      )
+      .then((controls) => {
+        if (cancelled) {
+          controls.stop();
+          return;
+        }
+        controlsRef.current = controls;
+        setStarting(false);
+      })
+      .catch((err) => {
+        console.error("Scanner start failed", err);
+        if (cancelled) return;
+        const message =
+          err instanceof Error && err.name === "NotAllowedError"
+            ? "カメラへのアクセスが拒否されました。ブラウザの設定で許可してください。"
+            : "カメラを起動できませんでした。";
+        setError(message);
+        setStarting(false);
+      });
 
     return () => {
       cancelled = true;
-      const scanner = scannerRef.current;
-      scannerRef.current = null;
-      if (scanner) {
-        scanner
-          .stop()
-          .catch(() => undefined)
-          .finally(() => {
-            try {
-              scanner.clear();
-            } catch {
-              /* noop */
-            }
-          });
-      }
+      controlsRef.current?.stop();
+      controlsRef.current = null;
     };
-  }, [open, onScan, elementId]);
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -113,7 +108,7 @@ export function BarcodeScannerDialog({ open, onOpenChange, onScan }: Props) {
         <DialogHeader>
           <DialogTitle>バーコードをスキャン</DialogTitle>
           <DialogDescription>
-            商品のバーコードを枠内に映してください。
+            商品のバーコードをカメラに映してください。
           </DialogDescription>
         </DialogHeader>
 
@@ -123,10 +118,15 @@ export function BarcodeScannerDialog({ open, onOpenChange, onScan }: Props) {
               {error}
             </p>
           ) : null}
-          <div
-            id={elementId}
-            className="aspect-[3/2] w-full overflow-hidden rounded-lg bg-black [&_video]:size-full [&_video]:object-cover"
-          />
+          <div className="aspect-[3/2] w-full overflow-hidden rounded-lg bg-black">
+            <video
+              ref={videoRef}
+              className="size-full object-cover"
+              playsInline
+              muted
+              autoPlay
+            />
+          </div>
           {starting && !error ? (
             <p className="text-center text-xs text-muted-foreground">
               カメラを起動中…
