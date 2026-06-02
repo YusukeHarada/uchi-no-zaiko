@@ -123,7 +123,21 @@ export function CategoryRow({
             onValueChange={(v) => commitColor(v as CategoryColor)}
           >
             <SelectTrigger className="h-8 w-24" aria-label="色">
-              <SelectValue />
+              <SelectValue>
+                {(v: CategoryColor | null) =>
+                  v ? (
+                    <span className="flex items-center gap-2">
+                      <span
+                        className={cn(
+                          "inline-block size-3 rounded-full border",
+                          CATEGORY_COLOR_CLASSES[v],
+                        )}
+                      />
+                      {v}
+                    </span>
+                  ) : null
+                }
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {CATEGORY_COLORS.map((c) => (

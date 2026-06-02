@@ -118,7 +118,21 @@ export function CategorySettingsView({ householdId }: Props) {
               onValueChange={(v) => setNewColor(v as CategoryColor)}
             >
               <SelectTrigger id="new-color" className="w-full">
-                <SelectValue />
+                <SelectValue>
+                  {(v: CategoryColor | null) =>
+                    v ? (
+                      <span className="flex items-center gap-2">
+                        <span
+                          className={cn(
+                            "inline-block size-3 rounded-full border",
+                            CATEGORY_COLOR_CLASSES[v],
+                          )}
+                        />
+                        {v}
+                      </span>
+                    ) : null
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {CATEGORY_COLORS.map((c) => (

@@ -186,7 +186,11 @@ export function ItemFormDialog({
                 onValueChange={(v) => setLocation(v as StorageLocation)}
               >
                 <SelectTrigger id="location" className="w-full">
-                  <SelectValue />
+                  <SelectValue>
+                    {(v: StorageLocation | null) =>
+                      v ? STORAGE_LOCATION_LABELS[v] : ""
+                    }
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {STORAGE_LOCATIONS.map((loc) => (
@@ -204,7 +208,14 @@ export function ItemFormDialog({
                 onValueChange={(v) => setCategoryId(v ?? UNCATEGORIZED)}
               >
                 <SelectTrigger id="category" className="w-full">
-                  <SelectValue />
+                  <SelectValue>
+                    {(v: string | null) => {
+                      if (!v || v === UNCATEGORIZED) return "未分類";
+                      return (
+                        categories.find((c) => c.id === v)?.name ?? "未分類"
+                      );
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={UNCATEGORIZED}>未分類</SelectItem>
