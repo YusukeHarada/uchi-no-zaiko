@@ -1,36 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# うちの在庫
 
-## Getting Started
+家庭の食品在庫・賞味期限・必要数・買い物リストをまとめて管理する Web アプリ。
 
-First, run the development server:
+## 技術スタック
+
+- **Next.js 16** (App Router) + **React 19** + **TypeScript**
+- **Firebase** (Authentication / Firestore / Cloud Messaging)
+- **Tailwind CSS v4** + **shadcn/ui**
+
+## セットアップ
+
+### 1. 依存関係のインストール
+
+```bash
+npm install
+```
+
+### 2. Firebase プロジェクトを用意
+
+[Firebase Console](https://console.firebase.google.com/) でプロジェクトを作成し、以下を有効化:
+
+- **Authentication** → Google プロバイダ
+- **Firestore Database** → 本番モードで開始
+- **Cloud Messaging** (期限アラート通知で使用予定)
+
+「プロジェクトの設定 → 全般 → マイアプリ → Web アプリ追加」で構成情報を取得し、
+`.env.local.example` をコピーして値を埋める:
+
+```bash
+cp .env.local.example .env.local
+```
+
+### 3. 開発サーバー起動
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+ブラウザで <http://localhost:3000> を開く。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## ディレクトリ構成 (Phase 1)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+├── app/                  # Next.js App Router
+│   ├── layout.tsx
+│   ├── page.tsx          # ランディング
+│   └── globals.css
+├── components/
+│   └── ui/               # shadcn/ui コンポーネント
+├── lib/
+│   ├── firebase/         # Firebase 初期化と認証ヘルパ
+│   │   ├── config.ts
+│   │   ├── auth.ts
+│   │   └── paths.ts      # Firestore パスの定義
+│   ├── types/            # ドメイン型
+│   │   └── inventory.ts
+│   └── utils.ts
+```
 
-## Learn More
+## Firestore データモデル
 
-To learn more about Next.js, take a look at the following resources:
+将来的な家族共有を見越して `households` 階層を入れている (Phase 1 では各ユーザーが自身の household を1つ持つ想定):
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+users/{uid}                     ユーザープロフィール
+households/{hid}                世帯
+├── items/{itemId}              在庫アイテム
+└── shoppingList/{itemId}       買い物リスト
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+詳細な型は `src/lib/types/inventory.ts` を参照。
 
-## Deploy on Vercel
+## ロードマップ
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Phase | 内容 | 状態 |
+|---|---|---|
+| 1 | プロジェクト初期化 (Next.js / Firebase / shadcn) | ✅ 完了 |
+| 2 | Google 認証・保護ルート | ✅ 完了 |
+| 3 | 在庫 CRUD (カテゴリ別タブ) | ✅ 完了 |
+| 4 | 賞味期限の可視化・ソート | ✅ 完了 (Phase 3 で同梱) |
+| 5 | バーコードスキャン入力 | 未着手 |
+| 6 | 必要数 → 買い物リスト連動 | 未着手 |
+| 7 | Cloud Functions + FCM で期限アラート通知 | 未着手 |
+| 8 | PWA 化 | 未着手 |
