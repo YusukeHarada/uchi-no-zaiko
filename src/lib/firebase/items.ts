@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 import { getDb } from "./config";
 import { fsPath } from "./paths";
+import { syncShoppingListForItem } from "./shopping";
 import type { InventoryItem, StorageLocation } from "@/lib/types/inventory";
 
 export interface ItemInput {
@@ -44,6 +45,9 @@ export async function addItem(hid: string, input: ItemInput): Promise<string> {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+  await syncShoppingListForItem(hid, ref.id).catch((err) => {
+    console.error("Failed to sync shopping list after addItem", err);
+  });
   return ref.id;
 }
 
@@ -56,10 +60,16 @@ export async function updateItem(
     ...toFirestorePayload(input),
     updatedAt: serverTimestamp(),
   });
+  await syncShoppingListForItem(hid, itemId).catch((err) => {
+    console.error("Failed to sync shopping list after updateItem", err);
+  });
 }
 
 export async function deleteItem(hid: string, itemId: string): Promise<void> {
   await deleteDoc(doc(getDb(), fsPath.item(hid, itemId)));
+  await syncShoppingListForItem(hid, itemId).catch((err) => {
+    console.error("Failed to sync shopping list after deleteItem", err);
+  });
 }
 
 export function subscribeToItems(

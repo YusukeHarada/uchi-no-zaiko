@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -13,11 +13,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/firebase/auth-context";
 import { signOut } from "@/lib/firebase/auth";
 
+const NAV_LINKS = [
+  { href: "/inventory", label: "在庫" },
+  { href: "/shopping", label: "買い物リスト" },
+] as const;
+
 export function AppHeader() {
   const router = useRouter();
+  const pathname = usePathname();
   const { user } = useAuth();
 
   const handleSignOut = async () => {
@@ -36,10 +43,31 @@ export function AppHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
-      <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-4">
-        <Link href="/inventory" className="font-semibold tracking-tight">
-          うちの在庫
-        </Link>
+      <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between gap-4 px-4">
+        <div className="flex items-center gap-4 sm:gap-6">
+          <Link href="/inventory" className="font-semibold tracking-tight">
+            うちの在庫
+          </Link>
+          <nav className="flex items-center gap-1 text-sm">
+            {NAV_LINKS.map((link) => {
+              const active = pathname?.startsWith(link.href);
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={cn(
+                    "rounded-md px-3 py-1.5 transition-colors",
+                    active
+                      ? "bg-muted font-medium text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
         <DropdownMenu>
           <DropdownMenuTrigger
             render={

@@ -30,12 +30,18 @@ import {
   type StorageLocation,
 } from "@/lib/types/inventory";
 
+export interface ItemFormInitialValues {
+  name?: string;
+  barcode?: string;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   householdId: string;
   item?: InventoryItem | null;
   defaultLocation?: StorageLocation;
+  initialValues?: ItemFormInitialValues;
 }
 
 function timestampToDateInputValue(ts: Timestamp | null | undefined): string {
@@ -60,6 +66,7 @@ export function ItemFormDialog({
   householdId,
   item,
   defaultLocation = "fridge",
+  initialValues,
 }: Props) {
   const isEdit = !!item;
   const [name, setName] = useState("");
@@ -84,16 +91,16 @@ export function ItemFormDialog({
       setBarcode(item.barcode ?? "");
       setNote(item.note ?? "");
     } else {
-      setName("");
+      setName(initialValues?.name ?? "");
       setLocation(defaultLocation);
       setQuantity("1");
       setRequiredQuantity("0");
       setUnit("");
       setExpiresAt("");
-      setBarcode("");
+      setBarcode(initialValues?.barcode ?? "");
       setNote("");
     }
-  }, [open, item, defaultLocation]);
+  }, [open, item, defaultLocation, initialValues]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -225,6 +232,17 @@ export function ItemFormDialog({
               type="date"
               value={expiresAt}
               onChange={(e) => setExpiresAt(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="barcode">バーコード</Label>
+            <Input
+              id="barcode"
+              value={barcode}
+              onChange={(e) => setBarcode(e.target.value)}
+              placeholder="スキャンするか手入力"
+              inputMode="numeric"
             />
           </div>
 

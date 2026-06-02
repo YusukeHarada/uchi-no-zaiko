@@ -1,12 +1,18 @@
 "use client";
 
-import { Plus } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Plus, ScanLine } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BarcodeScannerDialog } from "@/components/inventory/barcode-scanner-dialog";
 import { ItemCard } from "@/components/inventory/item-card";
-import { ItemFormDialog } from "@/components/inventory/item-form-dialog";
+import {
+  ItemFormDialog,
+  type ItemFormInitialValues,
+} from "@/components/inventory/item-form-dialog";
 import { subscribeToItems } from "@/lib/firebase/items";
+import { lookupProductByBarcode } from "@/lib/product-lookup";
 import {
   STORAGE_LOCATIONS,
   STORAGE_LOCATION_LABELS,
@@ -27,6 +33,10 @@ export function InventoryView({ householdId }: Props) {
   const [tab, setTab] = useState<TabValue>("all");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<InventoryItem | null>(null);
+  const [initialValues, setInitialValues] =
+    useState<ItemFormInitialValues | undefined>(undefined);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const handlingScanRef = useRef(false);
 
   useEffect(() => {
     setLoading(true);
@@ -57,13 +67,41 @@ export function InventoryView({ householdId }: Props) {
 
   const openCreate = () => {
     setEditing(null);
+    setInitialValues(undefined);
     setFormOpen(true);
   };
 
   const openEdit = (item: InventoryItem) => {
     setEditing(item);
+    setInitialValues(undefined);
     setFormOpen(true);
   };
+
+  const handleScan = useCallback(async (barcode: string) => {
+    if (handlingScanRef.current) return;
+    handlingScanRef.current = true;
+    setScannerOpen(false);
+    toast.info(`バーコード: ${barcode}`);
+    try {
+      const result = await lookupProductByBarcode(barcode);
+      if (result.name) {
+        toast.success(`商品名: ${result.name}`);
+      } else {
+        toast.warning("商品データが見つかりませんでした。手入力してください。");
+      }
+      setEditing(null);
+      setInitialValues({ name: result.name ?? "", barcode });
+      setFormOpen(true);
+    } catch (error) {
+      console.error(error);
+      toast.error("商品検索に失敗しました");
+      setEditing(null);
+      setInitialValues({ name: "", barcode });
+      setFormOpen(true);
+    } finally {
+      handlingScanRef.current = false;
+    }
+  }, []);
 
   const defaultLocation: StorageLocation =
     tab === "all" ? "fridge" : (tab as StorageLocation);
@@ -72,9 +110,14 @@ export function InventoryView({ householdId }: Props) {
     <div className="mx-auto w-full max-w-3xl space-y-4 p-4 sm:p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">在庫</h1>
-        <Button onClick={openCreate}>
-          <Plus /> 追加
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setScannerOpen(true)}>
+            <ScanLine /> スキャン
+          </Button>
+          <Button onClick={openCreate}>
+            <Plus /> 追加
+          </Button>
+        </div>
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as TabValue)}>
@@ -95,7 +138,7 @@ export function InventoryView({ householdId }: Props) {
               </p>
             ) : filtered.length === 0 ? (
               <div className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground">
-                アイテムがありません。「追加」から登録できます。
+                アイテムがありません。「追加」または「スキャン」から登録できます。
               </div>
             ) : (
               filtered.map((item) => (
@@ -115,11 +158,21 @@ export function InventoryView({ householdId }: Props) {
         open={formOpen}
         onOpenChange={(open) => {
           setFormOpen(open);
-          if (!open) setEditing(null);
+          if (!open) {
+            setEditing(null);
+            setInitialValues(undefined);
+          }
         }}
         householdId={householdId}
         item={editing}
         defaultLocation={defaultLocation}
+        initialValues={initialValues}
+      />
+
+      <BarcodeScannerDialog
+        open={scannerOpen}
+        onOpenChange={setScannerOpen}
+        onScan={handleScan}
       />
     </div>
   );
