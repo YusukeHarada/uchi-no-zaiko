@@ -64,7 +64,7 @@ export function ItemCard({ item, householdId, onEdit }: Props) {
     <>
       <div
         className={cn(
-          "card group relative flex items-start gap-3 overflow-hidden rounded-xl border bg-card px-4 py-3.5",
+          "card relative flex items-start gap-3 overflow-hidden rounded-xl border bg-card px-4 py-3.5",
         )}
       >
         {/* Left status indicator strip */}
@@ -129,7 +129,7 @@ export function ItemCard({ item, householdId, onEdit }: Props) {
         </div>
 
         {/* Action buttons */}
-        <div className="flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+        <div className="flex shrink-0 gap-0.5">
           <Button
             variant="ghost"
             size="icon"
