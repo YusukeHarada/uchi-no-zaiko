@@ -290,16 +290,14 @@ export function ItemFormDialog({
           </div>
 
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="expiresAt">賞味期限</Label>
-              <ExpirationTipsDialog />
-            </div>
+            <Label htmlFor="expiresAt">賞味期限</Label>
             <Input
               id="expiresAt"
               type="date"
               value={expiresAt}
               onChange={(e) => setExpiresAt(e.target.value)}
             />
+            <ExpirationTipsDialog />
           </div>
 
           <div className="space-y-1.5">
