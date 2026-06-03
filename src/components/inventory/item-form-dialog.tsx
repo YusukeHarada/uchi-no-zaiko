@@ -65,6 +65,9 @@ function ExpirationTipsDialog() {
             <DialogTitle>保存方法のTips</DialogTitle>
           </DialogHeader>
           <ExpirationTips />
+          <Button type="button" variant="outline" className="mt-2 w-full" onClick={() => setOpen(false)}>
+            閉じる
+          </Button>
         </DialogContent>
       </Dialog>
     </>
