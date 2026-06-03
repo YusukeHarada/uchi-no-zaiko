@@ -293,7 +293,10 @@ export function ItemFormDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="expiresAt">賞味期限</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="expiresAt">賞味期限</Label>
+              <ExpirationTipsDialog />
+            </div>
             <Input
               id="expiresAt"
               type="date"
