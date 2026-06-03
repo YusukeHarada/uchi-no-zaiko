@@ -22,6 +22,7 @@ import { signOut } from "@/lib/firebase/auth";
 const NAV_LINKS = [
   { href: "/inventory", label: "在庫" },
   { href: "/shopping", label: "買い物リスト" },
+  { href: "/tips", label: "Tips" },
 ] as const;
 
 export function AppHeader() {
