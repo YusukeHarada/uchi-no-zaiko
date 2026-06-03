@@ -118,6 +118,11 @@ export function AppHeader() {
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
                 <DropdownMenuItem
+                  onClick={() => router.push("/settings/household")}
+                >
+                  家族と共有
+                </DropdownMenuItem>
+                <DropdownMenuItem
                   onClick={() => router.push("/settings/categories")}
                 >
                   カテゴリ管理
