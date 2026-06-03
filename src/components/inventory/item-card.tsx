@@ -128,25 +128,25 @@ export function ItemCard({ item, householdId, onEdit }: Props) {
           )}
         </div>
 
-        {/* Action buttons */}
+        {/* Action buttons — min 44px touch target */}
         <div className="flex shrink-0 gap-0.5">
           <Button
             variant="ghost"
             size="icon"
-            className="size-8 text-muted-foreground hover:text-foreground"
+            className="size-11 text-muted-foreground hover:text-foreground"
             onClick={() => onEdit(item)}
             aria-label="編集"
           >
-            <Pencil className="size-3.5" />
+            <Pencil className="size-4" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="size-8 text-muted-foreground hover:text-destructive"
+            className="size-11 text-muted-foreground hover:text-destructive"
             onClick={() => setConfirmOpen(true)}
             aria-label="削除"
           >
-            <Trash2 className="size-3.5" />
+            <Trash2 className="size-4" />
           </Button>
         </div>
       </div>
