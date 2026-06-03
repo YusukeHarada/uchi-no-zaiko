@@ -63,7 +63,7 @@ export function ItemCard({ item, householdId, onEdit }: Props) {
 
   return (
     <>
-      <Card className={cn("hover:shadow-md", accentClass)}>
+      <Card className={cn("hover:shadow-lg", accentClass)}>
         <CardContent className="flex items-start justify-between gap-3 p-4">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
