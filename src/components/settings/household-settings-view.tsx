@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, Copy, RefreshCw, Users } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,7 @@ interface Props {
 
 export function HouseholdSettingsView({ householdId }: Props) {
   const { user } = useAuth();
-  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [info, setInfo] = useState<HouseholdInfo | null>(null);
   const [loadingInfo, setLoadingInfo] = useState(true);
@@ -34,8 +34,9 @@ export function HouseholdSettingsView({ householdId }: Props) {
   const [generatingCode, setGeneratingCode] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // 参加フロー
-  const [joinCode, setJoinCode] = useState("");
+  // 参加フロー — URL パラメータから自動セット可能
+  const [joinHid, setJoinHid] = useState(searchParams?.get("h") ?? "");
+  const [joinCode, setJoinCode] = useState(searchParams?.get("c") ?? "");
   const [lookingUp, setLookingUp] = useState(false);
   const [lookupResult, setLookupResult] = useState<InviteLookupResult | null>(null);
   const [existingItemCount, setExistingItemCount] = useState(0);
@@ -50,26 +51,26 @@ export function HouseholdSettingsView({ householdId }: Props) {
       .finally(() => setLoadingInfo(false));
   }, [householdId]);
 
+  // URL パラメータがあれば自動で確認実行
+  useEffect(() => {
+    const h = searchParams?.get("h");
+    const c = searchParams?.get("c");
+    if (h && c && user) {
+      setJoinHid(h);
+      setJoinCode(c);
+      handleLookupWith(h, c);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
   const handleGenerateCode = async () => {
     if (!user) return;
     setGeneratingCode(true);
     try {
-      const code = await generateInviteCode(
-        householdId,
-        user.displayName ?? user.email ?? "ユーザー",
-      );
-      setInfo((prev) =>
-        prev
-          ? {
-              ...prev,
-              inviteCode: code,
-              inviteCodeExpiresAt: null, // display refresh で再取得
-            }
-          : prev,
-      );
-      // 最新情報を再取得
+      const code = await generateInviteCode(householdId);
       const updated = await getHouseholdInfo(householdId);
       setInfo(updated);
+      toast.success("招待コードを発行しました");
     } catch (err) {
       console.error(err);
       toast.error("コードの発行に失敗しました");
@@ -78,19 +79,25 @@ export function HouseholdSettingsView({ householdId }: Props) {
     }
   };
 
-  const handleCopy = async () => {
-    if (!info?.inviteCode) return;
-    await navigator.clipboard.writeText(info.inviteCode).catch(() => {});
+  const getInviteUrl = () => {
+    if (typeof window === "undefined" || !info?.inviteCode) return "";
+    return `${window.location.origin}/settings/household?h=${householdId}&c=${info.inviteCode}`;
+  };
+
+  const handleCopyLink = async () => {
+    const url = getInviteUrl();
+    if (!url) return;
+    await navigator.clipboard.writeText(url).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleLookup = async () => {
-    if (!user || !joinCode.trim()) return;
+  const handleLookupWith = async (hid: string, code: string) => {
+    if (!user || !hid.trim() || !code.trim()) return;
     setLookingUp(true);
     setLookupResult(null);
     try {
-      const result = await lookupInviteCode(joinCode, user.uid);
+      const result = await lookupInviteCode(hid.trim(), code.trim().toUpperCase(), user.uid);
       setLookupResult(result);
       if (result.found && !result.alreadyMember) {
         const count = await getItemCount(householdId);
@@ -105,27 +112,19 @@ export function HouseholdSettingsView({ householdId }: Props) {
     }
   };
 
-  const handleJoin = async () => {
-    if (!user || !lookupResult || !lookupResult.found) return;
-    if (lookupResult.alreadyMember) return;
+  const handleLookup = () => handleLookupWith(joinHid, joinCode);
 
+  const handleJoin = async () => {
+    if (!user || !lookupResult?.found || lookupResult.alreadyMember) return;
     setJoining(true);
     try {
-      await joinHousehold(
-        user.uid,
-        user.displayName,
-        lookupResult.householdId,
-        joinCode,
-      );
-
+      await joinHousehold(user.uid, user.displayName, lookupResult.householdId);
       if (migrateChoice && existingItemCount > 0) {
         const migrated = await migrateItems(householdId, lookupResult.householdId);
         toast.success(`グループに参加しました。在庫 ${migrated} 件を移行しました。`);
       } else {
         toast.success("グループに参加しました");
       }
-
-      // defaultHouseholdId が変わったのでリロード
       window.location.href = "/inventory";
     } catch (err) {
       console.error(err);
@@ -136,7 +135,6 @@ export function HouseholdSettingsView({ householdId }: Props) {
 
   const isOwner = !!user && info?.ownerUid === user.uid;
   const memberCount = info?.memberUids.length ?? 1;
-
   const expiresLabel = info?.inviteCodeExpiresAt
     ? `${info.inviteCodeExpiresAt.toDate().toLocaleString("ja-JP", {
         month: "numeric",
@@ -156,13 +154,13 @@ export function HouseholdSettingsView({ householdId }: Props) {
           家族と共有
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          招待コードを共有して、家族と在庫を一緒に管理できます。
+          招待リンクを共有して、家族と在庫を一緒に管理できます。
         </p>
       </div>
 
-      {/* 現在のグループ情報 */}
+      {/* 現在のグループ */}
       <section className="card rounded-xl border bg-card p-5">
-        <div className="mb-4 flex items-center gap-3">
+        <div className="flex items-center gap-3">
           <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <Users className="size-4" />
           </div>
@@ -171,15 +169,12 @@ export function HouseholdSettingsView({ householdId }: Props) {
               {loadingInfo ? "読み込み中…" : (info?.name ?? "グループ")}
             </p>
             <p className="text-xs text-muted-foreground">
-              メンバー {memberCount} 人
-              {memberCount > 1 && " · 共有中"}
+              メンバー {memberCount} 人{memberCount > 1 ? " · 共有中" : ""}
             </p>
           </div>
         </div>
-
-        {/* メンバー名一覧 */}
         {info && Object.keys(info.memberNames).length > 0 && (
-          <div className="mt-1 flex flex-wrap gap-1.5">
+          <div className="mt-3 flex flex-wrap gap-1.5">
             {info.memberUids.map((uid) => (
               <span
                 key={uid}
@@ -192,32 +187,31 @@ export function HouseholdSettingsView({ householdId }: Props) {
         )}
       </section>
 
-      {/* 招待コードを発行（オーナーのみ） */}
+      {/* 招待リンクを発行（オーナーのみ） */}
       {isOwner && (
         <section className="space-y-3">
           <h2 className="text-base font-semibold">家族を招待する</h2>
           <p className="text-sm text-muted-foreground">
-            コードを発行して家族に伝えてください。24時間有効です。
+            招待リンクを発行して LINE などで家族に送ってください。24時間有効です。
           </p>
 
           {info?.inviteCode ? (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <div className="flex-1 rounded-lg border bg-muted px-4 py-3 text-center font-mono text-2xl font-bold tracking-[0.3em] text-foreground">
+                <div className="flex-1 rounded-lg border bg-muted px-4 py-3 text-center font-mono text-2xl font-bold tracking-[0.3em]">
                   {info.inviteCode}
                 </div>
                 <Button
-                  variant="outline"
-                  size="icon"
-                  className="size-12 shrink-0"
-                  onClick={handleCopy}
-                  aria-label="コピー"
+                  className="h-14 shrink-0 gap-1.5 px-4"
+                  onClick={handleCopyLink}
+                  variant={copied ? "secondary" : "default"}
                 >
-                  {copied ? <Check className="size-4 text-primary" /> : <Copy className="size-4" />}
+                  {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+                  {copied ? "コピー済み" : "リンクをコピー"}
                 </Button>
               </div>
               {expiresLabel && (
-                <p className="text-xs text-muted-foreground text-center">{expiresLabel}</p>
+                <p className="text-center text-xs text-muted-foreground">{expiresLabel}</p>
               )}
               <Button
                 variant="outline"
@@ -231,46 +225,54 @@ export function HouseholdSettingsView({ householdId }: Props) {
               </Button>
             </div>
           ) : (
-            <Button
-              className="w-full h-11"
-              onClick={handleGenerateCode}
-              disabled={generatingCode}
-            >
-              {generatingCode ? "発行中…" : "招待コードを発行"}
+            <Button className="w-full h-11" onClick={handleGenerateCode} disabled={generatingCode}>
+              {generatingCode ? "発行中…" : "招待リンクを発行"}
             </Button>
           )}
         </section>
       )}
 
-      {/* 招待コードで参加する */}
+      {/* 招待リンクで参加する */}
       <section className="space-y-3">
         <h2 className="text-base font-semibold">コードでグループに参加する</h2>
         <p className="text-sm text-muted-foreground">
-          家族から受け取った6桁のコードを入力してください。
+          家族から受け取ったリンクをタップするか、コードを手入力してください。
         </p>
 
-        <div className="space-y-2">
-          <Label htmlFor="join-code">招待コード</Label>
-          <div className="flex gap-2">
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="join-hid" className="text-xs text-muted-foreground">
+              グループID（リンクから自動入力）
+            </Label>
             <Input
-              id="join-code"
-              value={joinCode}
-              onChange={(e) => {
-                setJoinCode(e.target.value.toUpperCase());
-                setLookupResult(null);
-              }}
-              placeholder="ABC123"
-              maxLength={6}
-              className="h-11 font-mono text-base tracking-widest uppercase"
-              aria-label="招待コード"
+              id="join-hid"
+              value={joinHid}
+              onChange={(e) => { setJoinHid(e.target.value); setLookupResult(null); }}
+              placeholder="相手のグループID"
+              className="h-11 font-mono text-sm"
             />
-            <Button
-              className="h-11 shrink-0"
-              onClick={handleLookup}
-              disabled={lookingUp || joinCode.trim().length !== 6}
-            >
-              {lookingUp ? "確認中…" : "確認"}
-            </Button>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="join-code" className="text-xs text-muted-foreground">
+              招待コード（6文字）
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id="join-code"
+                value={joinCode}
+                onChange={(e) => { setJoinCode(e.target.value.toUpperCase()); setLookupResult(null); }}
+                placeholder="ABC123"
+                maxLength={6}
+                className="h-11 font-mono text-base tracking-widest uppercase"
+              />
+              <Button
+                className="h-11 shrink-0"
+                onClick={handleLookup}
+                disabled={lookingUp || !joinHid.trim() || joinCode.trim().length !== 6}
+              >
+                {lookingUp ? "確認中…" : "確認"}
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -297,7 +299,6 @@ export function HouseholdSettingsView({ householdId }: Props) {
                 参加後は、このグループの在庫・買い物リストが共有されます。
               </p>
             </div>
-
             {existingItemCount > 0 && (
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
@@ -311,12 +312,7 @@ export function HouseholdSettingsView({ householdId }: Props) {
                 </span>
               </label>
             )}
-
-            <Button
-              className="w-full h-11"
-              onClick={handleJoin}
-              disabled={joining}
-            >
+            <Button className="w-full h-11" onClick={handleJoin} disabled={joining}>
               {joining ? "参加中…" : "グループに参加する"}
             </Button>
           </div>

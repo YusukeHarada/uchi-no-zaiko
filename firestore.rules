@@ -21,16 +21,11 @@ service cloud.firestore {
     function isJoiningWithCode() {
       let uid = request.auth.uid;
       return isSignedIn()
-        // まだメンバーでない
         && !(uid in resource.data.memberUids)
-        // 自分を追加しようとしている
         && uid in request.resource.data.memberUids
-        // 既存メンバーを削除していない
         && request.resource.data.memberUids.hasAll(resource.data.memberUids)
-        // 有効な招待コードが存在する
         && resource.data.inviteCode != null
         && resource.data.inviteCodeExpiresAt > request.time
-        // オーナーが変わっていない
         && request.resource.data.ownerUid == resource.data.ownerUid;
     }
 
@@ -43,18 +38,14 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // 招待コードコレクション（認証済みユーザーなら誰でも検索可）
-    match /inviteCodes/{code} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn()
-        && isMember(request.resource.data.householdId);
-      allow delete: if isSignedIn()
-        && isMember(resource.data.householdId);
-    }
-
     match /households/{hid} {
+      // メンバー、または有効な招待コードがある場合に読み取り可
       allow read: if isSignedIn()
-        && request.auth.uid in resource.data.memberUids;
+        && (
+          request.auth.uid in resource.data.memberUids
+          || (resource.data.inviteCode != null
+              && resource.data.inviteCodeExpiresAt > request.time)
+        );
 
       allow create: if isSignedIn()
         && request.resource.data.ownerUid == request.auth.uid
@@ -62,10 +53,8 @@ service cloud.firestore {
 
       allow update: if isSignedIn()
         && (
-          // 既存メンバーによる更新
           (request.auth.uid in resource.data.memberUids
             && request.resource.data.ownerUid == resource.data.ownerUid)
-          // 招待コードを使った参加
           || isJoiningWithCode()
         );
 
