@@ -54,9 +54,16 @@ export function ItemCard({ item, householdId, onEdit }: Props) {
     }
   };
 
+  const accentClass =
+    expiration.status === "expired"
+      ? "border-l-4 border-l-destructive"
+      : expiration.status === "soon"
+        ? "border-l-4 border-l-amber-400"
+        : "border-l-4 border-l-transparent";
+
   return (
     <>
-      <Card>
+      <Card className={cn("hover:shadow-md", accentClass)}>
         <CardContent className="flex items-start justify-between gap-3 p-4">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">

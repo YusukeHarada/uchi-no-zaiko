@@ -45,7 +45,7 @@ export function AppHeader() {
     user?.displayName?.trim()?.[0] ?? user?.email?.trim()?.[0]?.toUpperCase() ?? "?";
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
+    <header className="sticky top-0 z-40 bg-background/90 shadow-sm backdrop-blur-md">
       <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between gap-4 px-4">
         <div className="flex items-center gap-4 sm:gap-6">
           <Link href="/inventory" className="font-semibold tracking-tight">
