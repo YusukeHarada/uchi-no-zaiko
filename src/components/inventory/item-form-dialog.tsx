@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ExpirationTips } from "@/components/inventory/expiration-tips";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -45,6 +46,29 @@ interface Props {
   item?: InventoryItem | null;
   defaultLocation?: StorageLocation;
   initialValues?: ItemFormInitialValues;
+}
+
+function ExpirationTipsDialog() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+      >
+        保存方法の目安を見る
+      </button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>保存方法のTips</DialogTitle>
+          </DialogHeader>
+          <ExpirationTips />
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }
 
 function timestampToDateInputValue(ts: Timestamp | null | undefined): string {
@@ -266,7 +290,10 @@ export function ItemFormDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="expiresAt">賞味期限</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="expiresAt">賞味期限</Label>
+              <ExpirationTipsDialog />
+            </div>
             <Input
               id="expiresAt"
               type="date"

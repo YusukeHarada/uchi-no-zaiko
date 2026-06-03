@@ -15,7 +15,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarcodeScannerDialog } from "@/components/inventory/barcode-scanner-dialog";
 import { ExpirationSummaryBanner } from "@/components/inventory/expiration-summary";
-import { ExpirationTips } from "@/components/inventory/expiration-tips";
 import { ItemCard } from "@/components/inventory/item-card";
 import {
   ItemFormDialog,
@@ -44,7 +43,7 @@ interface Props {
   householdId: string;
 }
 
-const TAB_VALUES = ["all", ...STORAGE_LOCATIONS, "tips"] as const;
+const TAB_VALUES = ["all", ...STORAGE_LOCATIONS] as const;
 type TabValue = (typeof TAB_VALUES)[number];
 
 const SORT_OPTIONS = [
@@ -305,10 +304,9 @@ export function InventoryView({ householdId }: Props) {
               {STORAGE_LOCATION_LABELS[loc]} ({countByLocation.get(loc) ?? 0})
             </TabsTrigger>
           ))}
-          <TabsTrigger value="tips">Tips</TabsTrigger>
         </TabsList>
 
-        {tab !== "tips" && <div className="mt-3 flex flex-wrap items-center gap-2">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <div className="relative min-w-[12rem] flex-1">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -385,9 +383,9 @@ export function InventoryView({ householdId }: Props) {
           >
             在庫不足のみ
           </Button>
-        </div>}
+        </div>
 
-        {TAB_VALUES.filter((v) => v !== "tips").map((value) => (
+        {TAB_VALUES.map((value) => (
           <TabsContent key={value} value={value} className="mt-4 space-y-2">
             {loading ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
@@ -411,9 +409,6 @@ export function InventoryView({ householdId }: Props) {
             )}
           </TabsContent>
         ))}
-        <TabsContent value="tips" className="mt-4">
-          <ExpirationTips />
-        </TabsContent>
       </Tabs>
 
       <ItemFormDialog
