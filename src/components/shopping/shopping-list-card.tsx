@@ -71,14 +71,14 @@ export function ShoppingListCard({ householdId, item }: Props) {
             step="any"
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
-            className="w-16"
+            className="h-11 w-16 text-base"
             aria-label="購入数量"
           />
           {item.unit && (
-            <span className="text-xs text-muted-foreground">{item.unit}</span>
+            <span className="text-sm text-muted-foreground">{item.unit}</span>
           )}
           <Button
-            size="sm"
+            className="h-11 px-4"
             onClick={handleComplete}
             disabled={completing || removing}
           >
@@ -87,6 +87,7 @@ export function ShoppingListCard({ householdId, item }: Props) {
           <Button
             size="icon"
             variant="ghost"
+            className="size-11"
             onClick={handleRemove}
             disabled={completing || removing}
             aria-label="削除"

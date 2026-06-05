@@ -297,10 +297,10 @@ export function InventoryView({ householdId }: Props) {
       />
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as TabValue)}>
-        <TabsList className="w-full overflow-x-auto">
-          <TabsTrigger value="all">すべて ({items.length})</TabsTrigger>
+        <TabsList className="h-11 w-full overflow-x-auto">
+          <TabsTrigger value="all" className="h-10 px-4">すべて ({items.length})</TabsTrigger>
           {STORAGE_LOCATIONS.map((loc) => (
-            <TabsTrigger key={loc} value={loc}>
+            <TabsTrigger key={loc} value={loc} className="h-10 px-4">
               {STORAGE_LOCATION_LABELS[loc]} ({countByLocation.get(loc) ?? 0})
             </TabsTrigger>
           ))}
@@ -308,12 +308,12 @@ export function InventoryView({ householdId }: Props) {
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <div className="relative min-w-[12rem] flex-1">
-            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="名前 / メモ / バーコードで検索"
-              className="h-9 pl-8 pr-8"
+              className="h-11 pl-9 pr-10 text-base"
               aria-label="検索"
             />
             {search && (
@@ -321,7 +321,7 @@ export function InventoryView({ householdId }: Props) {
                 type="button"
                 onClick={() => setSearch("")}
                 aria-label="検索をクリア"
-                className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1.5 text-muted-foreground hover:text-foreground"
               >
                 <X className="size-4" />
               </button>
@@ -331,7 +331,7 @@ export function InventoryView({ householdId }: Props) {
             value={categoryFilter}
             onValueChange={(v) => setCategoryFilter(v ?? CATEGORY_ALL)}
           >
-            <SelectTrigger className="h-9 w-36" aria-label="カテゴリで絞り込み">
+            <SelectTrigger className="h-11 w-36" aria-label="カテゴリで絞り込み">
               <SelectValue>
                 {(v: string | null) => {
                   if (!v || v === CATEGORY_ALL) return "カテゴリ: 全て";
@@ -356,7 +356,7 @@ export function InventoryView({ householdId }: Props) {
             value={sortBy}
             onValueChange={(v) => setSortBy(v as SortValue)}
           >
-            <SelectTrigger className="h-9 w-40" aria-label="並び順">
+            <SelectTrigger className="h-11 w-40" aria-label="並び順">
               <SelectValue>
                 {(v: SortValue | null) =>
                   v
@@ -376,9 +376,8 @@ export function InventoryView({ householdId }: Props) {
           <Button
             type="button"
             variant={showOnlyLowStock ? "default" : "outline"}
-            size="sm"
             onClick={() => setShowOnlyLowStock((v) => !v)}
-            className="h-9"
+            className="h-11"
             aria-pressed={showOnlyLowStock}
           >
             在庫不足のみ

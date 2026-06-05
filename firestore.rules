@@ -17,6 +17,18 @@ service cloud.firestore {
         && request.auth.uid in get(/databases/$(database)/documents/households/$(hid)).data.memberUids;
     }
 
+    // 有効な招待コードで参加しようとしているか
+    function isJoiningWithCode() {
+      let uid = request.auth.uid;
+      return isSignedIn()
+        && !(uid in resource.data.memberUids)
+        && uid in request.resource.data.memberUids
+        && request.resource.data.memberUids.hasAll(resource.data.memberUids)
+        && resource.data.inviteCode != null
+        && resource.data.inviteCodeExpiresAt > request.time
+        && request.resource.data.ownerUid == resource.data.ownerUid;
+    }
+
     match /users/{uid} {
       allow read: if isSelf(uid);
       allow create: if isSelf(uid)
@@ -27,16 +39,24 @@ service cloud.firestore {
     }
 
     match /households/{hid} {
+      // メンバー、または有効な招待コードがある場合に読み取り可
       allow read: if isSignedIn()
-        && request.auth.uid in resource.data.memberUids;
+        && (
+          request.auth.uid in resource.data.memberUids
+          || (resource.data.inviteCode != null
+              && resource.data.inviteCodeExpiresAt > request.time)
+        );
 
       allow create: if isSignedIn()
         && request.resource.data.ownerUid == request.auth.uid
         && request.auth.uid in request.resource.data.memberUids;
 
       allow update: if isSignedIn()
-        && request.auth.uid in resource.data.memberUids
-        && request.resource.data.ownerUid == resource.data.ownerUid;
+        && (
+          (request.auth.uid in resource.data.memberUids
+            && request.resource.data.ownerUid == resource.data.ownerUid)
+          || isJoiningWithCode()
+        );
 
       allow delete: if isSignedIn()
         && resource.data.ownerUid == request.auth.uid;

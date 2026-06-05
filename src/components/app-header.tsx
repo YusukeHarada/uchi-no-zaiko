@@ -45,13 +45,17 @@ export function AppHeader() {
     user?.displayName?.trim()?.[0] ?? user?.email?.trim()?.[0]?.toUpperCase() ?? "?";
 
   return (
-    <header className="sticky top-0 z-40 bg-background/90 shadow-sm backdrop-blur-md">
-      <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between gap-4 px-4">
-        <div className="flex items-center gap-4 sm:gap-6">
-          <Link href="/inventory" className="font-semibold tracking-tight">
+    <header className="sticky top-0 z-40 border-b border-border/60 bg-background/90 backdrop-blur-md">
+      <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between gap-4 px-4">
+        <div className="flex items-center gap-5 sm:gap-6">
+          <Link
+            href="/inventory"
+            className="text-base font-bold tracking-tight text-foreground transition-opacity hover:opacity-75"
+            style={{ fontFamily: "var(--font-heading)" }}
+          >
             うちの在庫
           </Link>
-          <nav className="flex items-center gap-1 text-sm">
+          <nav className="flex items-center gap-0.5 text-sm">
             {NAV_LINKS.map((link) => {
               const active = pathname?.startsWith(link.href);
               return (
@@ -59,13 +63,16 @@ export function AppHeader() {
                   key={link.href}
                   href={link.href}
                   className={cn(
-                    "rounded-md px-3 py-1.5 transition-colors",
+                    "relative rounded-md px-3 py-2.5 font-medium transition-colors",
                     active
-                      ? "bg-muted font-medium text-foreground"
+                      ? "text-primary"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {link.label}
+                  {active && (
+                    <span className="absolute bottom-0 left-3 right-3 h-0.5 rounded-full bg-primary" />
+                  )}
                 </Link>
               );
             })}
@@ -75,7 +82,7 @@ export function AppHeader() {
           <Button
             variant="ghost"
             size="icon"
-            className="size-9 rounded-full"
+            className="size-11 rounded-full text-muted-foreground hover:text-foreground"
             title="ログアウト"
             onClick={handleSignOut}
           >
@@ -85,14 +92,16 @@ export function AppHeader() {
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
-                <Button variant="ghost" size="icon" className="size-9 rounded-full" />
+                <Button variant="ghost" size="icon" className="size-11 rounded-full" />
               }
             >
-              <Avatar className="size-9">
+              <Avatar className="size-8 ring-1 ring-border">
                 {user?.photoURL ? (
                   <AvatarImage src={user.photoURL} alt={user.displayName ?? ""} />
                 ) : null}
-                <AvatarFallback>{initial}</AvatarFallback>
+                <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                  {initial}
+                </AvatarFallback>
               </Avatar>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-48">
@@ -108,6 +117,11 @@ export function AppHeader() {
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
+                <DropdownMenuItem
+                  onClick={() => router.push("/settings/household")}
+                >
+                  家族と共有
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => router.push("/settings/categories")}
                 >
