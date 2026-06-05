@@ -11,16 +11,39 @@ export default function AppleIcon() {
           width: "100%",
           height: "100%",
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          background: "#16a34a",
-          color: "white",
-          fontSize: 120,
-          fontWeight: 700,
+          background: "linear-gradient(145deg, #16a34a 0%, #0f7235 100%)",
           fontFamily: "system-ui, sans-serif",
         }}
       >
-        在
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 80,
+            height: 80,
+            borderRadius: 20,
+            background: "rgba(255,255,255,0.15)",
+            marginBottom: 10,
+            fontSize: 52,
+            color: "white",
+          }}
+        >
+          🥦
+        </div>
+        <div
+          style={{
+            color: "white",
+            fontSize: 24,
+            fontWeight: 700,
+            letterSpacing: "-0.5px",
+          }}
+        >
+          うちの在庫
+        </div>
       </div>
     ),
     size,
