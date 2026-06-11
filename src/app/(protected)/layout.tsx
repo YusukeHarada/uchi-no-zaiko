@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/app-header";
+import { BottomNav } from "@/components/bottom-nav";
 import { useAuth } from "@/lib/firebase/auth-context";
 import { ensureDefaultCategories } from "@/lib/firebase/categories";
 import { CategoriesProvider } from "@/lib/firebase/categories-context";
@@ -60,7 +61,8 @@ export default function ProtectedLayout({
     <HouseholdProvider householdId={householdId}>
       <CategoriesProvider>
         <AppHeader />
-        <main className="flex-1">{children}</main>
+        <main className="flex-1 pb-16 sm:pb-0">{children}</main>
+        <BottomNav />
       </CategoriesProvider>
     </HouseholdProvider>
   );
