@@ -303,7 +303,6 @@ export function ItemFormDialog({
               value={expiresAt}
               onChange={(e) => setExpiresAt(e.target.value)}
             />
-            <ExpirationTipsDialog />
           </div>
 
           <div className="space-y-1.5">
