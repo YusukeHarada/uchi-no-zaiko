@@ -75,7 +75,7 @@ export function ItemCard({ item, householdId, onEdit }: Props) {
         <div className="min-w-0 flex-1 pl-1">
           {/* Item name + badges row */}
           <div className="flex flex-wrap items-center gap-1.5">
-            <h3 className="truncate text-[15px] font-semibold leading-snug text-foreground">
+            <h3 className="truncate text-base font-semibold leading-snug text-foreground">
               {item.name}
             </h3>
             {category && (
