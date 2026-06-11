@@ -115,14 +115,14 @@ export function CategoryRow({
             value={name}
             onChange={(e) => setName(e.target.value)}
             onBlur={commitName}
-            className="h-8 min-w-0 flex-1"
+            className="min-w-0 flex-1"
             aria-label="カテゴリ名"
           />
           <Select
             value={color}
             onValueChange={(v) => commitColor(v as CategoryColor)}
           >
-            <SelectTrigger className="h-8 w-24" aria-label="色">
+            <SelectTrigger className="w-28" aria-label="色">
               <SelectValue>
                 {(v: CategoryColor | null) =>
                   v ? (
