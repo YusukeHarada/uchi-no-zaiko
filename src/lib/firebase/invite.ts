@@ -65,7 +65,8 @@ export async function lookupInviteCode(
   if (data.inviteCode !== code.trim().toUpperCase()) {
     return { found: false, reason: "not_found" };
   }
-  if ((data.inviteCodeExpiresAt as Timestamp).toDate() < new Date()) {
+  const expiresAt = data.inviteCodeExpiresAt as Timestamp | null | undefined;
+  if (!expiresAt || expiresAt.toDate() < new Date()) {
     return { found: false, reason: "expired" };
   }
 
