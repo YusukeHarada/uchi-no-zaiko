@@ -2,6 +2,7 @@
 
 import { Plus, ScanLine, Search, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -300,7 +301,8 @@ export function InventoryView({ householdId }: Props) {
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as TabValue)}>
         <div className="sticky top-14 z-30 border-b border-border/60 bg-background/95 backdrop-blur-sm">
-          <div className="px-4 pt-3 pb-3 sm:px-6 space-y-3">
+          <div className="space-y-2 px-4 pt-3 pb-3 sm:px-6">
+            {/* 保存場所タブ */}
             <TabsList className="h-11 w-full overflow-x-auto">
               <TabsTrigger value="all" className="h-10 px-4">すべて ({items.length})</TabsTrigger>
               {STORAGE_LOCATIONS.map((loc) => (
@@ -310,14 +312,15 @@ export function InventoryView({ householdId }: Props) {
               ))}
             </TabsList>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative min-w-[12rem] flex-1">
+            {/* 検索・並び順・在庫不足 */}
+            <div className="flex items-center gap-2">
+              <div className="relative min-w-0 flex-1">
                 <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="名前 / メモ / バーコードで検索"
-                  className="h-11 pl-9 pr-10 text-base"
+                  className="h-9 pl-9 pr-8 text-sm"
                   aria-label="検索"
                 />
                 {search && (
@@ -325,47 +328,20 @@ export function InventoryView({ householdId }: Props) {
                     type="button"
                     onClick={() => setSearch("")}
                     aria-label="検索をクリア"
-                    className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1.5 text-muted-foreground hover:text-foreground"
+                    className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
                   >
-                    <X className="size-4" />
+                    <X className="size-3.5" />
                   </button>
                 )}
               </div>
               <Select
-                value={categoryFilter}
-                onValueChange={(v) => setCategoryFilter(v ?? CATEGORY_ALL)}
-              >
-                <SelectTrigger className="h-11 w-36" aria-label="カテゴリで絞り込み">
-                  <SelectValue>
-                    {(v: string | null) => {
-                      if (!v || v === CATEGORY_ALL) return "カテゴリ: 全て";
-                      if (v === CATEGORY_NONE) return "未分類";
-                      return (
-                        categories.find((c) => c.id === v)?.name ?? "(不明)"
-                      );
-                    }}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={CATEGORY_ALL}>全て</SelectItem>
-                  <SelectItem value={CATEGORY_NONE}>未分類</SelectItem>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select
                 value={sortBy}
                 onValueChange={(v) => setSortBy(v as SortValue)}
               >
-                <SelectTrigger className="h-11 w-40" aria-label="並び順">
+                <SelectTrigger className="h-9 w-auto shrink-0 px-2.5 text-xs" aria-label="並び順">
                   <SelectValue>
                     {(v: SortValue | null) =>
-                      v
-                        ? (SORT_OPTIONS.find((o) => o.value === v)?.label ?? "")
-                        : ""
+                      v ? (SORT_OPTIONS.find((o) => o.value === v)?.label ?? "") : ""
                     }
                   </SelectValue>
                 </SelectTrigger>
@@ -380,12 +356,36 @@ export function InventoryView({ householdId }: Props) {
               <Button
                 type="button"
                 variant={showOnlyLowStock ? "default" : "outline"}
+                size="sm"
                 onClick={() => setShowOnlyLowStock((v) => !v)}
-                className="h-11"
+                className="h-9 shrink-0 px-2.5 text-xs"
                 aria-pressed={showOnlyLowStock}
               >
                 在庫不足のみ
               </Button>
+            </div>
+
+            {/* カテゴリチップ */}
+            <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              {([
+                { id: CATEGORY_ALL, name: "全て" },
+                { id: CATEGORY_NONE, name: "未分類" },
+                ...categories,
+              ] as { id: string; name: string }[]).map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setCategoryFilter(cat.id)}
+                  className={cn(
+                    "shrink-0 rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors",
+                    categoryFilter === cat.id
+                      ? "bg-primary text-primary-foreground"
+                      : "border border-border bg-card text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {cat.name}
+                </button>
+              ))}
             </div>
           </div>
         </div>
