@@ -13,7 +13,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarcodeScannerDialog } from "@/components/inventory/barcode-scanner-dialog";
 import { ExpirationSummaryBanner } from "@/components/inventory/expiration-summary";
 import { ItemCard } from "@/components/inventory/item-card";
@@ -44,8 +43,7 @@ interface Props {
   householdId: string;
 }
 
-const TAB_VALUES = ["all", ...STORAGE_LOCATIONS] as const;
-type TabValue = (typeof TAB_VALUES)[number];
+type TabValue = "all" | StorageLocation;
 
 const SORT_OPTIONS = [
   { value: "expiration", label: "期限が近い順" },
@@ -299,127 +297,144 @@ export function InventoryView({ householdId }: Props) {
         />
       </div>
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as TabValue)}>
-        <div
-          className="sticky z-20 border-b border-border/60 bg-background"
-          style={{ top: "calc(env(safe-area-inset-top) + 3.5rem)" }}
-        >
-          <div className="space-y-2 px-4 pt-3 pb-3 sm:px-6">
-            {/* 保存場所タブ */}
-            <TabsList className="h-11 w-full overflow-x-auto">
-              <TabsTrigger value="all" className="h-10 px-4">すべて ({items.length})</TabsTrigger>
-              {STORAGE_LOCATIONS.map((loc) => (
-                <TabsTrigger key={loc} value={loc} className="h-10 px-4">
-                  {STORAGE_LOCATION_LABELS[loc]} ({countByLocation.get(loc) ?? 0})
-                </TabsTrigger>
-              ))}
-            </TabsList>
-
-            {/* 検索・並び順・在庫不足 */}
-            <div className="flex items-center gap-2">
-              <div className="relative min-w-0 flex-1">
-                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="名前 / メモ / バーコードで検索"
-                  className="h-9 pl-9 pr-8 text-sm"
-                  aria-label="検索"
-                />
-                {search && (
-                  <button
-                    type="button"
-                    onClick={() => setSearch("")}
-                    aria-label="検索をクリア"
-                    className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                )}
-              </div>
-              <Select
-                value={sortBy}
-                onValueChange={(v) => setSortBy(v as SortValue)}
-              >
-                <SelectTrigger className="h-9 w-auto shrink-0 px-2.5 text-xs" aria-label="並び順">
-                  <SelectValue>
-                    {(v: SortValue | null) =>
-                      v ? (SORT_OPTIONS.find((o) => o.value === v)?.label ?? "") : ""
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {SORT_OPTIONS.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
+      <div
+        className="sticky z-20 border-b border-border/60 bg-background"
+        style={{ top: "calc(env(safe-area-inset-top) + 3.5rem)" }}
+      >
+        <div className="space-y-2 px-4 pt-3 pb-3 sm:px-6">
+          {/* 保存場所チップ */}
+          <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <button
+              type="button"
+              onClick={() => setTab("all")}
+              className={cn(
+                "shrink-0 rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors",
+                tab === "all"
+                  ? "bg-primary text-primary-foreground"
+                  : "border border-border bg-card text-muted-foreground hover:text-foreground",
+              )}
+            >
+              すべて ({items.length})
+            </button>
+            {STORAGE_LOCATIONS.map((loc) => (
+              <button
+                key={loc}
                 type="button"
-                variant={showOnlyLowStock ? "default" : "outline"}
-                size="sm"
-                onClick={() => setShowOnlyLowStock((v) => !v)}
-                className="h-9 shrink-0 px-2.5 text-xs"
-                aria-pressed={showOnlyLowStock}
+                onClick={() => setTab(loc)}
+                className={cn(
+                  "shrink-0 rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors",
+                  tab === loc
+                    ? "bg-primary text-primary-foreground"
+                    : "border border-border bg-card text-muted-foreground hover:text-foreground",
+                )}
               >
-                在庫不足のみ
-              </Button>
-            </div>
+                {STORAGE_LOCATION_LABELS[loc]} ({countByLocation.get(loc) ?? 0})
+              </button>
+            ))}
+          </div>
 
-            {/* カテゴリチップ */}
-            <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-              {([
-                { id: CATEGORY_ALL, name: "全て" },
-                { id: CATEGORY_NONE, name: "未分類" },
-                ...categories,
-              ] as { id: string; name: string }[]).map((cat) => (
+          {/* 検索・並び順・在庫不足 */}
+          <div className="flex items-center gap-2">
+            <div className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="名前 / メモ / バーコードで検索"
+                className="h-9 pl-9 pr-8 text-sm"
+                aria-label="検索"
+              />
+              {search && (
                 <button
-                  key={cat.id}
                   type="button"
-                  onClick={() => setCategoryFilter(cat.id)}
-                  className={cn(
-                    "shrink-0 rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors",
-                    categoryFilter === cat.id
-                      ? "bg-primary text-primary-foreground"
-                      : "border border-border bg-card text-muted-foreground hover:text-foreground",
-                  )}
+                  onClick={() => setSearch("")}
+                  aria-label="検索をクリア"
+                  className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
                 >
-                  {cat.name}
+                  <X className="size-3.5" />
                 </button>
-              ))}
+              )}
             </div>
+            <Select
+              value={sortBy}
+              onValueChange={(v) => setSortBy(v as SortValue)}
+            >
+              <SelectTrigger className="h-9 w-auto shrink-0 px-2.5 text-xs" aria-label="並び順">
+                <SelectValue>
+                  {(v: SortValue | null) =>
+                    v ? (SORT_OPTIONS.find((o) => o.value === v)?.label ?? "") : ""
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {SORT_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant={showOnlyLowStock ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowOnlyLowStock((v) => !v)}
+              className="h-9 shrink-0 px-2.5 text-xs"
+              aria-pressed={showOnlyLowStock}
+            >
+              在庫不足のみ
+            </Button>
+          </div>
+
+          {/* カテゴリチップ */}
+          <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            {([
+              { id: CATEGORY_ALL, name: "全て" },
+              { id: CATEGORY_NONE, name: "未分類" },
+              ...categories,
+            ] as { id: string; name: string }[]).map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setCategoryFilter(cat.id)}
+                className={cn(
+                  "shrink-0 rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors",
+                  categoryFilter === cat.id
+                    ? "bg-primary text-primary-foreground"
+                    : "border border-border bg-card text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {cat.name}
+              </button>
+            ))}
           </div>
         </div>
+      </div>
 
-        <div className="px-4 pb-4 sm:px-6 sm:pb-6">
-          {TAB_VALUES.map((value) => (
-            <TabsContent key={value} value={value} className="mt-4 space-y-2">
-              {loading ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">
-                  読み込み中…
-                </p>
-              ) : filtered.length === 0 ? (
-                <div className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground">
-                  {items.length === 0
-                    ? "アイテムがありません。「追加」または「スキャン」から登録できます。"
-                    : "条件に合うアイテムがありません。"}
-                </div>
-              ) : (
-                filtered.map((item) => (
-                  <ItemCard
-                    key={item.id}
-                    item={item}
-                    householdId={householdId}
-                    onEdit={openEdit}
-                  />
-                ))
-              )}
-            </TabsContent>
-          ))}
+      <div className="px-4 pb-4 sm:px-6 sm:pb-6">
+        <div className="mt-4 space-y-2">
+          {loading ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              読み込み中…
+            </p>
+          ) : filtered.length === 0 ? (
+            <div className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground">
+              {items.length === 0
+                ? "アイテムがありません。「追加」または「スキャン」から登録できます。"
+                : "条件に合うアイテムがありません。"}
+            </div>
+          ) : (
+            filtered.map((item) => (
+              <ItemCard
+                key={item.id}
+                item={item}
+                householdId={householdId}
+                onEdit={openEdit}
+              />
+            ))
+          )}
         </div>
-      </Tabs>
+      </div>
 
       <ItemFormDialog
         open={formOpen}
