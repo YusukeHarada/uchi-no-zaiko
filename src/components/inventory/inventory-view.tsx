@@ -277,137 +277,145 @@ export function InventoryView({ householdId }: Props) {
     tab === "all" ? "fridge" : (tab as StorageLocation);
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-4 p-4 sm:p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">在庫</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleOpenScanner}>
-            <ScanLine /> スキャン
-          </Button>
-          <Button onClick={openCreate}>
-            <Plus /> 追加
-          </Button>
+    <div className="mx-auto w-full max-w-3xl">
+      <div className="space-y-4 px-4 pt-4 pb-0 sm:px-6 sm:pt-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold tracking-tight">在庫</h1>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleOpenScanner}>
+              <ScanLine /> スキャン
+            </Button>
+            <Button onClick={openCreate}>
+              <Plus /> 追加
+            </Button>
+          </div>
         </div>
+
+        <ExpirationSummaryBanner
+          summary={summary}
+          notificationStatus={notificationStatus}
+          onEnableNotifications={handleEnableNotifications}
+        />
       </div>
 
-      <ExpirationSummaryBanner
-        summary={summary}
-        notificationStatus={notificationStatus}
-        onEnableNotifications={handleEnableNotifications}
-      />
-
       <Tabs value={tab} onValueChange={(v) => setTab(v as TabValue)}>
-        <TabsList className="h-11 w-full overflow-x-auto">
-          <TabsTrigger value="all" className="h-10 px-4">すべて ({items.length})</TabsTrigger>
-          {STORAGE_LOCATIONS.map((loc) => (
-            <TabsTrigger key={loc} value={loc} className="h-10 px-4">
-              {STORAGE_LOCATION_LABELS[loc]} ({countByLocation.get(loc) ?? 0})
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <div className="sticky top-14 z-30 border-b border-border/60 bg-background/95 backdrop-blur-sm">
+          <div className="px-4 pt-3 pb-3 sm:px-6 space-y-3">
+            <TabsList className="h-11 w-full overflow-x-auto">
+              <TabsTrigger value="all" className="h-10 px-4">すべて ({items.length})</TabsTrigger>
+              {STORAGE_LOCATIONS.map((loc) => (
+                <TabsTrigger key={loc} value={loc} className="h-10 px-4">
+                  {STORAGE_LOCATION_LABELS[loc]} ({countByLocation.get(loc) ?? 0})
+                </TabsTrigger>
+              ))}
+            </TabsList>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[12rem] flex-1">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="名前 / メモ / バーコードで検索"
-              className="h-11 pl-9 pr-10 text-base"
-              aria-label="検索"
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                aria-label="検索をクリア"
-                className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1.5 text-muted-foreground hover:text-foreground"
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative min-w-[12rem] flex-1">
+                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="名前 / メモ / バーコードで検索"
+                  className="h-11 pl-9 pr-10 text-base"
+                  aria-label="検索"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    aria-label="検索をクリア"
+                    className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1.5 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="size-4" />
+                  </button>
+                )}
+              </div>
+              <Select
+                value={categoryFilter}
+                onValueChange={(v) => setCategoryFilter(v ?? CATEGORY_ALL)}
               >
-                <X className="size-4" />
-              </button>
-            )}
+                <SelectTrigger className="h-11 w-36" aria-label="カテゴリで絞り込み">
+                  <SelectValue>
+                    {(v: string | null) => {
+                      if (!v || v === CATEGORY_ALL) return "カテゴリ: 全て";
+                      if (v === CATEGORY_NONE) return "未分類";
+                      return (
+                        categories.find((c) => c.id === v)?.name ?? "(不明)"
+                      );
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={CATEGORY_ALL}>全て</SelectItem>
+                  <SelectItem value={CATEGORY_NONE}>未分類</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={sortBy}
+                onValueChange={(v) => setSortBy(v as SortValue)}
+              >
+                <SelectTrigger className="h-11 w-40" aria-label="並び順">
+                  <SelectValue>
+                    {(v: SortValue | null) =>
+                      v
+                        ? (SORT_OPTIONS.find((o) => o.value === v)?.label ?? "")
+                        : ""
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {SORT_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant={showOnlyLowStock ? "default" : "outline"}
+                onClick={() => setShowOnlyLowStock((v) => !v)}
+                className="h-11"
+                aria-pressed={showOnlyLowStock}
+              >
+                在庫不足のみ
+              </Button>
+            </div>
           </div>
-          <Select
-            value={categoryFilter}
-            onValueChange={(v) => setCategoryFilter(v ?? CATEGORY_ALL)}
-          >
-            <SelectTrigger className="h-11 w-36" aria-label="カテゴリで絞り込み">
-              <SelectValue>
-                {(v: string | null) => {
-                  if (!v || v === CATEGORY_ALL) return "カテゴリ: 全て";
-                  if (v === CATEGORY_NONE) return "未分類";
-                  return (
-                    categories.find((c) => c.id === v)?.name ?? "(不明)"
-                  );
-                }}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={CATEGORY_ALL}>全て</SelectItem>
-              <SelectItem value={CATEGORY_NONE}>未分類</SelectItem>
-              {categories.map((cat) => (
-                <SelectItem key={cat.id} value={cat.id}>
-                  {cat.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={sortBy}
-            onValueChange={(v) => setSortBy(v as SortValue)}
-          >
-            <SelectTrigger className="h-11 w-40" aria-label="並び順">
-              <SelectValue>
-                {(v: SortValue | null) =>
-                  v
-                    ? (SORT_OPTIONS.find((o) => o.value === v)?.label ?? "")
-                    : ""
-                }
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {SORT_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            type="button"
-            variant={showOnlyLowStock ? "default" : "outline"}
-            onClick={() => setShowOnlyLowStock((v) => !v)}
-            className="h-11"
-            aria-pressed={showOnlyLowStock}
-          >
-            在庫不足のみ
-          </Button>
         </div>
 
-        {TAB_VALUES.map((value) => (
-          <TabsContent key={value} value={value} className="mt-4 space-y-2">
-            {loading ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                読み込み中…
-              </p>
-            ) : filtered.length === 0 ? (
-              <div className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground">
-                {items.length === 0
-                  ? "アイテムがありません。「追加」または「スキャン」から登録できます。"
-                  : "条件に合うアイテムがありません。"}
-              </div>
-            ) : (
-              filtered.map((item) => (
-                <ItemCard
-                  key={item.id}
-                  item={item}
-                  householdId={householdId}
-                  onEdit={openEdit}
-                />
-              ))
-            )}
-          </TabsContent>
-        ))}
+        <div className="px-4 pb-4 sm:px-6 sm:pb-6">
+          {TAB_VALUES.map((value) => (
+            <TabsContent key={value} value={value} className="mt-4 space-y-2">
+              {loading ? (
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  読み込み中…
+                </p>
+              ) : filtered.length === 0 ? (
+                <div className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground">
+                  {items.length === 0
+                    ? "アイテムがありません。「追加」または「スキャン」から登録できます。"
+                    : "条件に合うアイテムがありません。"}
+                </div>
+              ) : (
+                filtered.map((item) => (
+                  <ItemCard
+                    key={item.id}
+                    item={item}
+                    householdId={householdId}
+                    onEdit={openEdit}
+                  />
+                ))
+              )}
+            </TabsContent>
+          ))}
+        </div>
       </Tabs>
 
       <ItemFormDialog
