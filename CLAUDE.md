@@ -63,6 +63,13 @@ households/{hid}/
 - `expired`（過去）/ `soon`（0〜3日）/ `ok`（4日以上）/ `none`（未設定）
 - `ItemCard` の左側ステータスバーの色（`statusBar`）と Badge はこの返値で決める。
 
+### レイアウト・スクロールモデル
+
+- `html` / `body` を `h-dvh` にしてビューポート高さを固定する。
+- `(protected)/layout.tsx` の `<main>` が `overflow-y-auto` のスクロールコンテナ。`AppHeader` は `main` の外（兄弟要素）のため、ページ内の `sticky` 要素は `top-0` で AppHeader 直下に固定できる。`env(safe-area-inset-top)` の計算は不要。
+- `main` は `min-h-0` を持つ（flex child のデフォルト `min-height: auto` を打ち消すため必須）。
+- BottomNav は `fixed bottom-0 sm:hidden`。モバイル向けに `main` へ `pb-16` を指定しコンテンツが隠れないようにしている。
+
 ### UI スタック
 
 - **@base-ui/react v1.5.0**: Tabs・Dialog・Select などの headless プリミティブ。shadcn/ui のように見えるが内部は Base UI であり、API が異なる点に注意。使い方は `node_modules/@base-ui/react/` を参照。
