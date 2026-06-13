@@ -300,7 +300,10 @@ export function InventoryView({ householdId }: Props) {
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as TabValue)}>
-        <div className="sticky top-0 z-20 border-b border-border/60 bg-background">
+        <div
+          className="sticky z-20 border-b border-border/60 bg-background"
+          style={{ top: "calc(env(safe-area-inset-top) + 3.5rem)" }}
+        >
           <div className="space-y-2 px-4 pt-3 pb-3 sm:px-6">
             {/* 保存場所タブ */}
             <TabsList className="h-11 w-full overflow-x-auto">
