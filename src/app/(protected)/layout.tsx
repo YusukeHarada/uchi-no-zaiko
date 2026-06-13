@@ -61,7 +61,7 @@ export default function ProtectedLayout({
     <HouseholdProvider householdId={householdId}>
       <CategoriesProvider>
         <AppHeader />
-        <main className="flex-1 pb-16 sm:pb-0">{children}</main>
+        <main className="flex-1 min-h-0 overflow-y-auto pb-16 sm:pb-0">{children}</main>
         <BottomNav />
       </CategoriesProvider>
     </HouseholdProvider>
