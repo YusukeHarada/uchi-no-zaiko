@@ -56,7 +56,7 @@ const CATEGORY_ALL = "__all__";
 const CATEGORY_NONE = "__none__";
 
 export function InventoryView({ householdId }: Props) {
-  const { categories } = useCategories();
+  const { categories, byId: categoriesById } = useCategories();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabValue>("all");
@@ -92,7 +92,10 @@ export function InventoryView({ householdId }: Props) {
     return unsubscribe;
   }, [householdId]);
 
-  const summary = useMemo(() => summarizeExpirations(items), [items]);
+  const summary = useMemo(
+    () => summarizeExpirations(items, new Date(), (item) => item.categoryId ? categoriesById.get(item.categoryId)?.name : null),
+    [items, categoriesById],
+  );
 
   useEffect(() => {
     if (loading) return;

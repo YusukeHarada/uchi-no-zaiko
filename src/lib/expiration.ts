@@ -9,9 +9,33 @@ export interface ExpirationInfo {
   label: string;
 }
 
+// カテゴリ名ごとの「もうすぐ期限切れ」警告日数
+// 食材の傷みやすさに応じて設定
+const CATEGORY_SOON_DAYS: Record<string, number> = {
+  魚: 2,       // 非常に傷みやすい
+  肉: 3,       // 冷蔵で2〜3日
+  野菜: 5,     // 葉物〜根菜の中間
+  乳製品: 5,   // 牛乳・ヨーグルト等
+  飲料: 7,
+  お菓子: 7,
+  冷凍食品: 14, // 冷凍でも品質劣化があるため早めに通知
+  レトルト: 14,
+  調味料: 14,
+};
+
+const DEFAULT_SOON_DAYS = 3;
+
+export function getSoonThreshold(categoryName?: string | null): number {
+  if (categoryName && categoryName in CATEGORY_SOON_DAYS) {
+    return CATEGORY_SOON_DAYS[categoryName];
+  }
+  return DEFAULT_SOON_DAYS;
+}
+
 export function getExpirationInfo(
   expiresAt: Timestamp | null | undefined,
   now: Date = new Date(),
+  categoryName?: string | null,
 ): ExpirationInfo {
   if (!expiresAt) {
     return { status: "none", daysRemaining: null, label: "期限なし" };
@@ -34,7 +58,8 @@ export function getExpirationInfo(
     };
   }
   if (days === 0) return { status: "soon", daysRemaining: 0, label: "本日まで" };
-  if (days <= 3) return { status: "soon", daysRemaining: days, label: `あと${days}日` };
+  const soonDays = getSoonThreshold(categoryName);
+  if (days <= soonDays) return { status: "soon", daysRemaining: days, label: `あと${days}日` };
   return { status: "ok", daysRemaining: days, label: `あと${days}日` };
 }
 
@@ -53,11 +78,13 @@ export interface ExpirationSummary {
 export function summarizeExpirations(
   items: InventoryItem[],
   now: Date = new Date(),
+  getCategoryName?: (item: InventoryItem) => string | null | undefined,
 ): ExpirationSummary {
   const expired: InventoryItem[] = [];
   const soon: InventoryItem[] = [];
   for (const item of items) {
-    const info = getExpirationInfo(item.expiresAt, now);
+    const categoryName = getCategoryName ? getCategoryName(item) : null;
+    const info = getExpirationInfo(item.expiresAt, now, categoryName);
     if (info.status === "expired") expired.push(item);
     else if (info.status === "soon") soon.push(item);
   }
