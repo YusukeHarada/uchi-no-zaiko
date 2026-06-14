@@ -35,7 +35,7 @@ export function ItemCard({ item, householdId, onEdit }: Props) {
   const category = item.categoryId ? byId.get(item.categoryId) : null;
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const expiration = getExpirationInfo(item.expiresAt);
+  const expiration = getExpirationInfo(item.expiresAt, new Date(), category?.name);
   const isBelowRequired =
     item.requiredQuantity > 0 && item.quantity < item.requiredQuantity;
 
