@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DeleteItemButton } from "@/components/inventory/delete-item-button";
 import { ExpirationTips } from "@/components/inventory/expiration-tips";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -440,6 +441,15 @@ export function ItemFormDialog({
           )}
 
           <DialogFooter className="gap-2 sm:gap-2">
+            {/* コンパクト表示の一覧には削除ボタンがないので、削除導線はここに置く */}
+            {item && (
+              <DeleteItemButton
+                householdId={householdId}
+                item={item}
+                variant="text"
+                onDeleted={() => onOpenChange(false)}
+              />
+            )}
             <Button
               type="button"
               variant="ghost"

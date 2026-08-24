@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Plus, ScanLine, Search, X } from "lucide-react";
+import { ChevronDown, LayoutList, Plus, Rows3, ScanLine, Search, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -35,6 +35,11 @@ import {
 } from "@/lib/notifications";
 import { lookupProductByBarcode } from "@/lib/product-lookup";
 import {
+  getInventoryDensity,
+  setInventoryDensity,
+  type InventoryDensity,
+} from "@/lib/view-preferences";
+import {
   STORAGE_LOCATIONS,
   STORAGE_LOCATION_LABELS,
   type InventoryItem,
@@ -66,6 +71,8 @@ export function InventoryView({ householdId }: Props) {
   const [categoryFilter, setCategoryFilter] = useState<string>(CATEGORY_ALL);
   const [sortBy, setSortBy] = useState<SortValue>("expiration");
   const [showOnlyLowStock, setShowOnlyLowStock] = useState(false);
+  // 既定はコンパクト表示。1画面に入る件数を優先し、詳細カードは切り替えで出す
+  const [density, setDensity] = useState<InventoryDensity>(getInventoryDensity);
   const [formOpen, setFormOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [showOutOfStock, setShowOutOfStock] = useState(false);
@@ -184,6 +191,14 @@ export function InventoryView({ householdId }: Props) {
     } else if (result === "unsupported") {
       toast.error("このブラウザは通知に対応していません");
     }
+  }, []);
+
+  const toggleDensity = useCallback(() => {
+    setDensity((current) => {
+      const next = current === "compact" ? "detailed" : "compact";
+      setInventoryDensity(next);
+      return next;
+    });
   }, []);
 
   const filtered = useMemo(() => {
@@ -347,15 +362,42 @@ export function InventoryView({ householdId }: Props) {
         className="sticky z-20 border-b border-border/60 bg-background"
         style={{ top: "calc(env(safe-area-inset-top) + 3.5rem)" }}
       >
-        <div className="space-y-2 px-4 pt-3 pb-3 sm:px-6">
-          {/* 保存場所チップ */}
-          <ChipGroup
-            aria-label="保管場所で絞り込む"
-            scroll
-            value={tab}
-            onValueChange={(v) => setTab(v as TabValue)}
-            options={locationFilterOptions}
-          />
+        <div className="space-y-1.5 px-4 pt-2 pb-2 sm:px-6">
+          {/* 保存場所チップ + 表示密度の切り替え */}
+          <div className="flex items-center gap-2">
+            <ChipGroup
+              aria-label="保管場所で絞り込む"
+              scroll
+              className="min-w-0 flex-1"
+              value={tab}
+              onValueChange={(v) => setTab(v as TabValue)}
+              options={locationFilterOptions}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={toggleDensity}
+              className="size-9 shrink-0 p-0"
+              aria-pressed={density === "compact"}
+              aria-label={
+                density === "compact"
+                  ? "詳細表示に切り替える"
+                  : "コンパクト表示に切り替える"
+              }
+              title={
+                density === "compact"
+                  ? "詳細表示に切り替える"
+                  : "コンパクト表示に切り替える"
+              }
+            >
+              {density === "compact" ? (
+                <LayoutList className="size-4" />
+              ) : (
+                <Rows3 className="size-4" />
+              )}
+            </Button>
+          </div>
 
           {/* 検索・並び順・在庫不足 */}
           <div className="flex items-center gap-2">
@@ -422,7 +464,7 @@ export function InventoryView({ householdId }: Props) {
       </div>
 
       <div className="px-4 pb-4 sm:px-6 sm:pb-6">
-        <div className="mt-4 space-y-2">
+        <div className={cn("mt-3", density === "compact" ? "space-y-1" : "space-y-2")}>
           {loading ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
               読み込み中…
@@ -441,6 +483,7 @@ export function InventoryView({ householdId }: Props) {
                   item={item}
                   householdId={householdId}
                   onEdit={openEdit}
+                  density={density}
                 />
               ))}
 
@@ -461,13 +504,19 @@ export function InventoryView({ householdId }: Props) {
                     切らしているもの ({outOfStock.length})
                   </button>
                   {showOutOfStock && (
-                    <div className="mt-2 space-y-2">
+                    <div
+                      className={cn(
+                        "mt-2",
+                        density === "compact" ? "space-y-1" : "space-y-2",
+                      )}
+                    >
                       {outOfStock.map((item) => (
                         <ItemCard
                           key={item.id}
                           item={item}
                           householdId={householdId}
                           onEdit={openEdit}
+                          density={density}
                         />
                       ))}
                     </div>

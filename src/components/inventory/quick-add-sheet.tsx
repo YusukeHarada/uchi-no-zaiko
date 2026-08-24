@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ChipGroup, type ChipOption } from "@/components/ui/chip-group";
 import { Input } from "@/components/ui/input";
 import { useCategories } from "@/lib/firebase/categories-context";
 import {
@@ -33,7 +34,10 @@ import {
 } from "@/lib/types/inventory";
 
 /** 「よく使う」に並べる件数 */
-const RECENT_LIMIT = 12;
+const RECENT_LIMIT = 18;
+
+/** 辞書のカテゴリ絞り込みで「すべて」を表す値 */
+const PRESET_CATEGORY_ALL = "__all__";
 
 interface Props {
   open: boolean;
@@ -97,7 +101,7 @@ function Chip({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "flex shrink-0 items-baseline gap-1 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors disabled:opacity-50",
+        "flex shrink-0 items-baseline gap-1 rounded-full border px-3 py-1.5 text-[13px] font-medium transition-colors disabled:opacity-50",
         variant === "accent"
           ? "border-primary bg-primary text-primary-foreground"
           : variant === "muted"
@@ -109,7 +113,7 @@ function Chip({
       {sublabel && (
         <span
           className={cn(
-            "text-[11px] font-normal",
+            "text-[10px] font-normal",
             variant === "accent"
               ? "text-primary-foreground/80"
               : "text-muted-foreground",
@@ -142,6 +146,7 @@ export function QuickAddSheet({
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [query, setQuery] = useState("");
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [presetCategory, setPresetCategory] = useState<string>(PRESET_CATEGORY_ALL);
 
   const normalizedQuery = normalizeItemName(query);
 
@@ -175,6 +180,22 @@ export function QuickAddSheet({
     }
     return [...groups.entries()];
   }, [existingByName, normalizedQuery]);
+
+  // 検索中は全カテゴリから拾う。選択中のカテゴリが空になったら「すべて」に戻す
+  const activePresetCategory =
+    normalizedQuery || !presetGroups.some(([name]) => name === presetCategory)
+      ? PRESET_CATEGORY_ALL
+      : presetCategory;
+
+  const visiblePresetGroups =
+    activePresetCategory === PRESET_CATEGORY_ALL
+      ? presetGroups
+      : presetGroups.filter(([name]) => name === activePresetCategory);
+
+  const presetCategoryOptions: ChipOption[] = [
+    { value: PRESET_CATEGORY_ALL, label: "すべて" },
+    ...presetGroups.map(([name]) => ({ value: name, label: name })),
+  ];
 
   const hasAnyResult = recentItems.length > 0 || presetGroups.length > 0;
 
@@ -276,7 +297,7 @@ export function QuickAddSheet({
             タップして追加
           </DialogTitle>
           <DialogDescription>
-            タップした品目がそのまま在庫に入ります。続けて何個でも追加できます。
+            タップした品目がそのまま在庫に入ります。
           </DialogDescription>
         </DialogHeader>
 
@@ -310,13 +331,23 @@ export function QuickAddSheet({
           </Button>
         </div>
 
-        <div className="-mx-1 max-h-[55dvh] space-y-4 overflow-y-auto px-1 pb-1">
+        {!normalizedQuery && presetGroups.length > 0 && (
+          <ChipGroup
+            aria-label="カテゴリで絞り込む"
+            scroll
+            value={activePresetCategory}
+            onValueChange={setPresetCategory}
+            options={presetCategoryOptions}
+          />
+        )}
+
+        <div className="-mx-1 max-h-[65dvh] space-y-2.5 overflow-y-auto px-1 pb-1">
           {recentItems.length > 0 && (
             <section>
-              <h3 className="mb-1.5 text-xs font-semibold text-muted-foreground">
+              <h3 className="mb-1 text-[11px] font-semibold text-muted-foreground">
                 よく使う
               </h3>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1">
                 {recentItems.map((item) => (
                   <Chip
                     key={item.id}
@@ -335,12 +366,14 @@ export function QuickAddSheet({
             </section>
           )}
 
-          {presetGroups.map(([categoryName, presets]) => (
+          {visiblePresetGroups.map(([categoryName, presets]) => (
             <section key={categoryName}>
-              <h3 className="mb-1.5 text-xs font-semibold text-muted-foreground">
-                {categoryName}
-              </h3>
-              <div className="flex flex-wrap gap-1.5">
+              {activePresetCategory === PRESET_CATEGORY_ALL && (
+                <h3 className="mb-1 text-[11px] font-semibold text-muted-foreground">
+                  {categoryName}
+                </h3>
+              )}
+              <div className="flex flex-wrap gap-1">
                 {presets.map((preset) => (
                   <Chip
                     key={preset.name}
@@ -373,10 +406,6 @@ export function QuickAddSheet({
             </p>
           )}
         </div>
-
-        <Button variant="outline" className="w-full" onClick={() => onOpenChange(false)}>
-          閉じる
-        </Button>
       </DialogContent>
     </Dialog>
   );
