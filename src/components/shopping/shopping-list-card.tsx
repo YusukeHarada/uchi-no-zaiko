@@ -5,7 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import {
   completePurchase,
   removeShoppingItem,
@@ -18,19 +18,14 @@ interface Props {
 }
 
 export function ShoppingListCard({ householdId, item }: Props) {
-  const [quantity, setQuantity] = useState(String(item.quantity || 1));
+  const [quantity, setQuantity] = useState(item.quantity || 1);
   const [completing, setCompleting] = useState(false);
   const [removing, setRemoving] = useState(false);
 
   const handleComplete = async () => {
-    const qty = Number(quantity);
-    if (Number.isNaN(qty) || qty <= 0) {
-      toast.error("数量は1以上で入力してください");
-      return;
-    }
     setCompleting(true);
     try {
-      await completePurchase(householdId, item.id, qty);
+      await completePurchase(householdId, item.id, quantity);
       toast.success(`「${item.name}」を在庫に追加しました`);
     } catch (error) {
       console.error(error);
@@ -64,19 +59,16 @@ export function ShoppingListCard({ householdId, item }: Props) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Input
-            type="number"
-            inputMode="numeric"
-            min={1}
-            step="any"
+          {/* 推奨数が既定で入っているので、そのまま「完了」を押すだけで済む */}
+          <QuantityStepper
             value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            className="h-11 w-16 text-base"
-            aria-label="購入数量"
+            onChange={setQuantity}
+            unit={item.unit}
+            min={1}
+            size="sm"
+            label="購入数量"
+            disabled={completing || removing}
           />
-          {item.unit && (
-            <span className="text-sm text-muted-foreground">{item.unit}</span>
-          )}
           <Button
             className="h-11 px-4"
             onClick={handleComplete}

@@ -6,6 +6,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   Timestamp,
   updateDoc,
@@ -65,6 +66,42 @@ export async function updateItem(
   await syncShoppingListForItem(hid, itemId).catch((err) => {
     console.error("Failed to sync shopping list after updateItem", err);
   });
+}
+
+/**
+ * 数量だけをその場で増減する。カード上の +/- ステッパー用。
+ *
+ * updateItem は ItemInput 全体を書き込むため、家族が同時に編集していると他の
+ * フィールドを巻き戻してしまう。増減はトランザクションで quantity と updatedAt
+ * だけを触る。0 未満にはならず、0 になってもアイテムは削除しない
+ * (「切らし中」として在庫に残り、次回 +1 で復活させられる)。
+ *
+ * @returns 更新後の数量
+ */
+export async function adjustItemQuantity(
+  hid: string,
+  itemId: string,
+  delta: number,
+): Promise<number> {
+  const db = getDb();
+  const itemRef = doc(db, fsPath.item(hid, itemId));
+
+  const next = await runTransaction(db, async (tx) => {
+    const snap = await tx.get(itemRef);
+    if (!snap.exists()) {
+      throw new Error(`Item not found: ${itemId}`);
+    }
+    const current = (snap.data().quantity as number | undefined) ?? 0;
+    const updated = Math.max(0, current + delta);
+    if (updated === current) return current;
+    tx.update(itemRef, { quantity: updated, updatedAt: serverTimestamp() });
+    return updated;
+  });
+
+  await syncShoppingListForItem(hid, itemId).catch((err) => {
+    console.error("Failed to sync shopping list after adjustItemQuantity", err);
+  });
+  return next;
 }
 
 export async function deleteItem(hid: string, itemId: string): Promise<void> {
