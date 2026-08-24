@@ -39,13 +39,25 @@ function DialogOverlay({
   )
 }
 
+const dialogContentVariants = {
+  // 画面中央に出す従来のモーダル
+  center:
+    "top-1/2 left-1/2 max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl sm:max-w-sm data-open:zoom-in-95 data-closed:zoom-out-95",
+  // 画面下端に貼り付くボトムシート。片手の親指で届く位置に操作を集める
+  sheet:
+    "bottom-0 left-1/2 max-h-[85dvh] max-w-full -translate-x-1/2 overflow-y-auto rounded-t-2xl rounded-b-none sm:bottom-auto sm:top-1/2 sm:max-w-lg sm:-translate-y-1/2 sm:rounded-2xl data-open:slide-in-from-bottom-4 data-closed:slide-out-to-bottom-4 sm:data-open:slide-in-from-bottom-0 sm:data-closed:slide-out-to-bottom-0",
+} as const
+
 function DialogContent({
   className,
   children,
   showCloseButton = true,
+  variant = "center",
+  style,
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean
+  variant?: keyof typeof dialogContentVariants
 }) {
   return (
     <DialogPortal>
@@ -53,9 +65,15 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed z-50 grid w-full gap-4 bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+          dialogContentVariants[variant],
           className
         )}
+        style={
+          variant === "sheet"
+            ? { paddingBottom: "calc(1rem + env(safe-area-inset-bottom))", ...style }
+            : style
+        }
         {...props}
       >
         {children}

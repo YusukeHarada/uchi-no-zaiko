@@ -1,11 +1,12 @@
 "use client";
 
-import { Plus, ScanLine, Search, X } from "lucide-react";
+import { ChevronDown, Plus, ScanLine, Search, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ChipGroup, type ChipOption } from "@/components/ui/chip-group";
 import {
   Select,
   SelectContent,
@@ -20,6 +21,7 @@ import {
   ItemFormDialog,
   type ItemFormInitialValues,
 } from "@/components/inventory/item-form-dialog";
+import { QuickAddSheet } from "@/components/inventory/quick-add-sheet";
 import { useCategories } from "@/lib/firebase/categories-context";
 import { subscribeToItems } from "@/lib/firebase/items";
 import { summarizeExpirations } from "@/lib/expiration";
@@ -65,6 +67,8 @@ export function InventoryView({ householdId }: Props) {
   const [sortBy, setSortBy] = useState<SortValue>("expiration");
   const [showOnlyLowStock, setShowOnlyLowStock] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [showOutOfStock, setShowOutOfStock] = useState(false);
   const [editing, setEditing] = useState<InventoryItem | null>(null);
   const [initialValues, setInitialValues] =
     useState<ItemFormInitialValues | undefined>(undefined);
@@ -142,6 +146,7 @@ export function InventoryView({ householdId }: Props) {
         video: { facingMode: { ideal: "environment" } },
         audio: false,
       });
+      setQuickAddOpen(false);
       setScannerStream(stream);
       setScannerOpen(true);
     } catch (error) {
@@ -226,6 +231,17 @@ export function InventoryView({ householdId }: Props) {
     return next;
   }, [items, tab, categoryFilter, sortBy, showOnlyLowStock, search]);
 
+  // 在庫 0 のアイテムは削除せず「切らしているもの」に退避する。
+  // 履歴として残るので、次に買ったときは追加シートから + 1タップで戻せる。
+  const inStock = useMemo(
+    () => filtered.filter((i) => i.quantity > 0),
+    [filtered],
+  );
+  const outOfStock = useMemo(
+    () => filtered.filter((i) => i.quantity <= 0),
+    [filtered],
+  );
+
   const countByLocation = useMemo(() => {
     const map = new Map<StorageLocation, number>();
     for (const loc of STORAGE_LOCATIONS) map.set(loc, 0);
@@ -238,8 +254,21 @@ export function InventoryView({ householdId }: Props) {
   const openCreate = () => {
     setEditing(null);
     setInitialValues(undefined);
-    setFormOpen(true);
+    setQuickAddOpen(true);
   };
+
+  /** 追加直後のトーストから、その品目の詳細フォームを開く */
+  const openAdjustByName = useCallback(
+    (itemName: string) => {
+      const target = items.find((i) => i.name === itemName);
+      if (!target) return;
+      setQuickAddOpen(false);
+      setEditing(target);
+      setInitialValues(undefined);
+      setFormOpen(true);
+    },
+    [items],
+  );
 
   const openEdit = (item: InventoryItem) => {
     setEditing(item);
@@ -278,6 +307,20 @@ export function InventoryView({ householdId }: Props) {
   const defaultLocation: StorageLocation =
     tab === "all" ? "fridge" : (tab as StorageLocation);
 
+  const locationFilterOptions: ChipOption[] = [
+    { value: "all", label: `すべて (${items.length})` },
+    ...STORAGE_LOCATIONS.map((loc) => ({
+      value: loc,
+      label: `${STORAGE_LOCATION_LABELS[loc]} (${countByLocation.get(loc) ?? 0})`,
+    })),
+  ];
+
+  const categoryFilterOptions: ChipOption[] = [
+    { value: CATEGORY_ALL, label: "全て" },
+    { value: CATEGORY_NONE, label: "未分類" },
+    ...categories.map((cat) => ({ value: cat.id, label: cat.name })),
+  ];
+
   return (
     <div className="mx-auto w-full max-w-3xl">
       <div className="space-y-4 px-4 pt-4 pb-0 sm:px-6 sm:pt-6">
@@ -306,35 +349,13 @@ export function InventoryView({ householdId }: Props) {
       >
         <div className="space-y-2 px-4 pt-3 pb-3 sm:px-6">
           {/* 保存場所チップ */}
-          <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            <button
-              type="button"
-              onClick={() => setTab("all")}
-              className={cn(
-                "shrink-0 rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors",
-                tab === "all"
-                  ? "bg-primary text-primary-foreground"
-                  : "border border-border bg-card text-muted-foreground hover:text-foreground",
-              )}
-            >
-              すべて ({items.length})
-            </button>
-            {STORAGE_LOCATIONS.map((loc) => (
-              <button
-                key={loc}
-                type="button"
-                onClick={() => setTab(loc)}
-                className={cn(
-                  "shrink-0 rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors",
-                  tab === loc
-                    ? "bg-primary text-primary-foreground"
-                    : "border border-border bg-card text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {STORAGE_LOCATION_LABELS[loc]} ({countByLocation.get(loc) ?? 0})
-              </button>
-            ))}
-          </div>
+          <ChipGroup
+            aria-label="保管場所で絞り込む"
+            scroll
+            value={tab}
+            onValueChange={(v) => setTab(v as TabValue)}
+            options={locationFilterOptions}
+          />
 
           {/* 検索・並び順・在庫不足 */}
           <div className="flex items-center gap-2">
@@ -390,27 +411,13 @@ export function InventoryView({ householdId }: Props) {
           </div>
 
           {/* カテゴリチップ */}
-          <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            {([
-              { id: CATEGORY_ALL, name: "全て" },
-              { id: CATEGORY_NONE, name: "未分類" },
-              ...categories,
-            ] as { id: string; name: string }[]).map((cat) => (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => setCategoryFilter(cat.id)}
-                className={cn(
-                  "shrink-0 rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors",
-                  categoryFilter === cat.id
-                    ? "bg-primary text-primary-foreground"
-                    : "border border-border bg-card text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {cat.name}
-              </button>
-            ))}
-          </div>
+          <ChipGroup
+            aria-label="カテゴリで絞り込む"
+            scroll
+            value={categoryFilter}
+            onValueChange={setCategoryFilter}
+            options={categoryFilterOptions}
+          />
         </div>
       </div>
 
@@ -427,17 +434,60 @@ export function InventoryView({ householdId }: Props) {
                 : "条件に合うアイテムがありません。"}
             </div>
           ) : (
-            filtered.map((item) => (
-              <ItemCard
-                key={item.id}
-                item={item}
-                householdId={householdId}
-                onEdit={openEdit}
-              />
-            ))
+            <>
+              {inStock.map((item) => (
+                <ItemCard
+                  key={item.id}
+                  item={item}
+                  householdId={householdId}
+                  onEdit={openEdit}
+                />
+              ))}
+
+              {outOfStock.length > 0 && (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowOutOfStock((v) => !v)}
+                    aria-expanded={showOutOfStock}
+                    className="flex w-full items-center gap-1.5 rounded-lg px-1 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    <ChevronDown
+                      className={cn(
+                        "size-4 transition-transform",
+                        showOutOfStock ? "rotate-0" : "-rotate-90",
+                      )}
+                    />
+                    切らしているもの ({outOfStock.length})
+                  </button>
+                  {showOutOfStock && (
+                    <div className="mt-2 space-y-2">
+                      {outOfStock.map((item) => (
+                        <ItemCard
+                          key={item.id}
+                          item={item}
+                          householdId={householdId}
+                          onEdit={openEdit}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
+
+      <QuickAddSheet
+        open={quickAddOpen}
+        onOpenChange={setQuickAddOpen}
+        householdId={householdId}
+        items={items}
+        defaultLocation={defaultLocation}
+        onOpenScanner={handleOpenScanner}
+        onAdjust={openAdjustByName}
+      />
 
       <ItemFormDialog
         open={formOpen}
