@@ -63,6 +63,12 @@ households/{hid}/
 - `expired`（過去）/ `soon`（0〜3日）/ `ok`（4日以上）/ `none`（未設定）
 - `ItemCard` の左側ステータスバーの色（`statusBar`）と Badge はこの返値で決める。
 
+### 一覧の表示密度
+
+`ItemCard` は `density` prop で 2 形態を持つ。既定は `compact`（1行 ≈ 48px。名前まわりをタップすると編集シートが開き、右端に `size="sm"` のステッパー）、`detailed` は従来のカード（カテゴリ名・期限日・メモ・編集/削除ボタン付き）。
+切り替えは在庫ページの保管場所チップ行の右端にあるトグルで、選択は `src/lib/view-preferences.ts` が localStorage に保存する。
+コンパクト行には削除ボタンを置けないため、削除導線は `DeleteItemButton`（`src/components/inventory/delete-item-button.tsx`）として切り出し、詳細カードと `ItemFormDialog` の編集時フッターの両方から使う。
+
 ### レイアウト・スクロールモデル
 
 - `html` / `body` を `h-dvh` にしてビューポート高さを固定する。

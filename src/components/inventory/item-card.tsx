@@ -1,25 +1,17 @@
 "use client";
 
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
+import { DeleteItemButton } from "@/components/inventory/delete-item-button";
 import { useCategories } from "@/lib/firebase/categories-context";
-import { adjustItemQuantity, deleteItem } from "@/lib/firebase/items";
+import { adjustItemQuantity } from "@/lib/firebase/items";
 import { formatDate, getExpirationInfo } from "@/lib/expiration";
 import { cn } from "@/lib/utils";
+import type { InventoryDensity } from "@/lib/view-preferences";
 import {
   CATEGORY_COLOR_CLASSES,
   type InventoryItem,
@@ -32,13 +24,13 @@ interface Props {
   item: InventoryItem;
   householdId: string;
   onEdit: (item: InventoryItem) => void;
+  /** compact = 1行表示 (既定)。detailed = 従来のカード */
+  density?: InventoryDensity;
 }
 
-export function ItemCard({ item, householdId, onEdit }: Props) {
+export function ItemCard({ item, householdId, onEdit, density = "compact" }: Props) {
   const { byId } = useCategories();
   const category = item.categoryId ? byId.get(item.categoryId) : null;
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
   // ステッパーの楽観更新。押した瞬間は pendingDelta で見た目を動かし、
   // FLUSH_DELAY 後に合算した差分を 1 回だけ Firestore に送る。
@@ -96,20 +88,6 @@ export function ItemCard({ item, householdId, onEdit }: Props) {
     item.requiredQuantity > 0 &&
     displayQuantity < item.requiredQuantity;
 
-  const handleDelete = async () => {
-    setDeleting(true);
-    try {
-      await deleteItem(householdId, item.id);
-      toast.success("削除しました");
-      setConfirmOpen(false);
-    } catch (error) {
-      console.error(error);
-      toast.error("削除に失敗しました");
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   const statusBar =
     expiration.status === "expired"
       ? "bg-destructive"
@@ -117,119 +95,151 @@ export function ItemCard({ item, householdId, onEdit }: Props) {
         ? "bg-amber-400"
         : "bg-transparent";
 
-  return (
-    <>
+  if (density === "compact") {
+    // 1行 ≈ 48px。名前まわりをタップすると編集シートが開く (削除もそこから)
+    return (
       <div
         className={cn(
-          "card relative overflow-hidden rounded-xl border bg-card px-4 py-3.5",
+          "card relative flex items-center gap-2 overflow-hidden rounded-lg border bg-card py-1 pr-1.5 pl-2.5",
           isOutOfStock && "opacity-70",
         )}
       >
-        {/* Left status indicator strip */}
-        <div
-          className={cn("absolute inset-y-0 left-0 w-0.5 rounded-full", statusBar)}
+        <div className={cn("absolute inset-y-0 left-0 w-0.5", statusBar)} />
+
+        <button
+          type="button"
+          onClick={() => onEdit(item)}
+          aria-label={`${item.name} を編集`}
+          className="flex min-w-0 flex-1 items-center gap-1.5 py-2 pl-0.5 text-left"
+        >
+          <span className="truncate text-sm font-semibold leading-snug text-foreground">
+            {item.name}
+          </span>
+          {isOutOfStock && (
+            <Badge
+              variant="outline"
+              className="h-4 shrink-0 px-1.5 text-[10px] text-muted-foreground"
+            >
+              切らし中
+            </Badge>
+          )}
+          {!isOutOfStock && expiration.status === "expired" && (
+            <Badge variant="destructive" className="h-4 shrink-0 px-1.5 text-[10px]">
+              {expiration.label}
+            </Badge>
+          )}
+          {!isOutOfStock && expiration.status === "soon" && (
+            <Badge className="h-4 shrink-0 bg-amber-500 px-1.5 text-[10px] text-white hover:bg-amber-500">
+              {expiration.label}
+            </Badge>
+          )}
+          {isBelowRequired && (
+            <Badge
+              variant="outline"
+              className="h-4 shrink-0 border-orange-300 px-1.5 text-[10px] text-orange-600 dark:text-orange-400"
+            >
+              不足
+            </Badge>
+          )}
+        </button>
+
+        <QuantityStepper
+          value={displayQuantity}
+          onChange={handleQuantityChange}
+          unit={item.unit}
+          size="sm"
+          label={`${item.name} の数量`}
+          className="shrink-0"
         />
+      </div>
+    );
+  }
 
-        <div className="flex items-start gap-3">
-          <div className="min-w-0 flex-1 pl-1">
-            {/* Item name + badges row */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              <h3 className="truncate text-base font-semibold leading-snug text-foreground">
-                {item.name}
-              </h3>
-              {isOutOfStock && (
-                <Badge variant="outline" className="text-[11px] text-muted-foreground">
-                  切らし中
-                </Badge>
-              )}
-              {category && (
-                <Badge
-                  variant="outline"
-                  className={cn("text-xs font-normal", CATEGORY_COLOR_CLASSES[category.color])}
-                >
-                  {category.name}
-                </Badge>
-              )}
-              {!isOutOfStock && expiration.status === "expired" && (
-                <Badge variant="destructive" className="text-xs">
-                  期限切れ {expiration.label}
-                </Badge>
-              )}
-              {!isOutOfStock && expiration.status === "soon" && (
-                <Badge className="bg-amber-500 text-[11px] text-white hover:bg-amber-500">
-                  {expiration.label}
-                </Badge>
-              )}
-              {isBelowRequired && (
-                <Badge variant="outline" className="border-orange-300 text-[11px] text-orange-600 dark:text-orange-400">
-                  在庫不足
-                </Badge>
-              )}
-            </div>
+  return (
+    <div
+      className={cn(
+        "card relative overflow-hidden rounded-xl border bg-card px-4 py-3.5",
+        isOutOfStock && "opacity-70",
+      )}
+    >
+      {/* Left status indicator strip */}
+      <div
+        className={cn("absolute inset-y-0 left-0 w-0.5 rounded-full", statusBar)}
+      />
 
-            {/* Meta row */}
-            <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-              {item.expiresAt && <span>期限 {formatDate(item.expiresAt)}</span>}
-              {item.requiredQuantity > 0 && (
-                <span>常備 {item.requiredQuantity}{item.unit ?? ""}</span>
-              )}
-              {item.note && (
-                <span className="truncate text-muted-foreground/70">{item.note}</span>
-              )}
-            </div>
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1 pl-1">
+          {/* Item name + badges row */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <h3 className="truncate text-base font-semibold leading-snug text-foreground">
+              {item.name}
+            </h3>
+            {isOutOfStock && (
+              <Badge variant="outline" className="text-[11px] text-muted-foreground">
+                切らし中
+              </Badge>
+            )}
+            {category && (
+              <Badge
+                variant="outline"
+                className={cn("text-xs font-normal", CATEGORY_COLOR_CLASSES[category.color])}
+              >
+                {category.name}
+              </Badge>
+            )}
+            {!isOutOfStock && expiration.status === "expired" && (
+              <Badge variant="destructive" className="text-xs">
+                期限切れ {expiration.label}
+              </Badge>
+            )}
+            {!isOutOfStock && expiration.status === "soon" && (
+              <Badge className="bg-amber-500 text-[11px] text-white hover:bg-amber-500">
+                {expiration.label}
+              </Badge>
+            )}
+            {isBelowRequired && (
+              <Badge variant="outline" className="border-orange-300 text-[11px] text-orange-600 dark:text-orange-400">
+                在庫不足
+              </Badge>
+            )}
           </div>
 
-          {/* Action buttons — min 44px touch target */}
-          <div className="flex shrink-0 gap-0.5">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-11 text-muted-foreground hover:text-foreground"
-              onClick={() => onEdit(item)}
-              aria-label={`${item.name} を編集`}
-            >
-              <Pencil className="size-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-11 text-muted-foreground hover:text-destructive"
-              onClick={() => setConfirmOpen(true)}
-              aria-label={`${item.name} を削除`}
-            >
-              <Trash2 className="size-4" />
-            </Button>
+          {/* Meta row */}
+          <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+            {item.expiresAt && <span>期限 {formatDate(item.expiresAt)}</span>}
+            {item.requiredQuantity > 0 && (
+              <span>常備 {item.requiredQuantity}{item.unit ?? ""}</span>
+            )}
+            {item.note && (
+              <span className="truncate text-muted-foreground/70">{item.note}</span>
+            )}
           </div>
         </div>
 
-        {/* タップだけで増減できるステッパー。ダイアログを開かずに「使った / 買った」を反映する */}
-        <div className="mt-2 pl-1">
-          <QuantityStepper
-            value={displayQuantity}
-            onChange={handleQuantityChange}
-            unit={item.unit}
-            label={`${item.name} の数量`}
-          />
+        {/* Action buttons — min 44px touch target */}
+        <div className="flex shrink-0 gap-0.5">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-11 text-muted-foreground hover:text-foreground"
+            onClick={() => onEdit(item)}
+            aria-label={`${item.name} を編集`}
+          >
+            <Pencil className="size-4" />
+          </Button>
+          <DeleteItemButton householdId={householdId} item={item} />
         </div>
       </div>
 
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>「{item.name}」を削除しますか?</AlertDialogTitle>
-            <AlertDialogDescription>
-              削除すると元に戻せません。使い切っただけなら数量を 0 のままにしておくと、
-              次に買ったとき + を押すだけで戻せます。
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>キャンセル</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={deleting}>
-              {deleting ? "削除中…" : "削除"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+      {/* タップだけで増減できるステッパー。ダイアログを開かずに「使った / 買った」を反映する */}
+      <div className="mt-2 pl-1">
+        <QuantityStepper
+          value={displayQuantity}
+          onChange={handleQuantityChange}
+          unit={item.unit}
+          label={`${item.name} の数量`}
+        />
+      </div>
+    </div>
   );
 }
